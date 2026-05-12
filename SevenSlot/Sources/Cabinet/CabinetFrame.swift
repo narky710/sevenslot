@@ -22,8 +22,8 @@ struct CabinetFrame<Content: View>: View {
                 .fill(Palette.fieldGradient)
                 .padding(14)
                 .overlay(alignment: .center) {
-                    // Faint POG watermark
-                    Text("POG")
+                    // Faint SS7 watermark
+                    Text("SS7")
                         .font(AppFont.display(220))
                         .foregroundStyle(.white.opacity(0.045))
                         .rotationEffect(.degrees(-8))
