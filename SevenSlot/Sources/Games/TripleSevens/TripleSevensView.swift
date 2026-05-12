@@ -2,9 +2,12 @@ import SwiftUI
 
 struct TripleSevensView: View {
     let game: Game
-    @State private var engine = TripleSevenEngine(initialCredits: 1000)
-    @State private var betAmount: Int = 1
+    @State private var engine = TripleSevenEngine(initialCredits: 100000) // 1000.00 in cents
+    @State private var betAmountCents: Int = 5 // Minimum: 5 cents
     @State private var isSpinning = false
+
+    // Available bet amounts (in cents): 5¢, 10¢, 25¢, 50¢, $1, $1.50, $2
+    private let availableBets = [5, 10, 25, 50, 100, 150, 200]
 
     private let reelLabels = ["REEL 1", "REEL 2", "REEL 3"]
     private let symbolNames = [
@@ -154,7 +157,7 @@ struct TripleSevensView: View {
                     .tracking(2)
                     .foregroundStyle(Palette.textCream.opacity(0.7))
 
-                Text("$\(engine.lastWinAmount)")
+                Text(formatCents(engine.lastWinAmount))
                     .font(AppFont.readout(20))
                     .foregroundStyle(engine.lastWinAmount > 0 ? Palette.goldBright : Palette.textCream)
                     .lineLimit(1)
@@ -166,7 +169,7 @@ struct TripleSevensView: View {
             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
 
             // Big Win indicator (if applicable)
-            if engine.lastWinAmount > 100 {
+            if engine.lastWinAmount > 500 { // $5.00 big win threshold
                 VStack(spacing: 2) {
                     Image(systemName: "star.fill")
                         .font(.system(size: 16))
@@ -196,29 +199,37 @@ struct TripleSevensView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 6)
 
-            // Bet buttons
-            HStack(spacing: 8) {
-                betButton(amount: 1)
-                betButton(amount: 5)
-                betButton(amount: 10)
-                betButton(amount: 25)
+            // Bet buttons (two rows for 7 buttons)
+            VStack(spacing: 6) {
+                HStack(spacing: 8) {
+                    betButton(cents: 5)
+                    betButton(cents: 10)
+                    betButton(cents: 25)
+                    betButton(cents: 50)
+                }
+                HStack(spacing: 8) {
+                    betButton(cents: 100)
+                    betButton(cents: 150)
+                    betButton(cents: 200)
+                    Spacer()
+                }
             }
             .padding(.horizontal, 6)
         }
     }
 
-    private func betButton(amount: Int) -> some View {
-        Button(action: { betAmount = amount }) {
+    private func betButton(cents: Int) -> some View {
+        Button(action: { betAmountCents = cents }) {
             VStack(spacing: 1) {
-                Text("$\(amount)")
-                    .font(AppFont.readout(14))
+                Text(formatCents(cents))
+                    .font(AppFont.readout(12))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 32)
-            .foregroundStyle(betAmount == amount ? Palette.blackFelt : Palette.textCream)
-            .background(betAmount == amount ? Palette.goldBright : Palette.chromeShadow)
+            .foregroundStyle(betAmountCents == cents ? Palette.blackFelt : Palette.textCream)
+            .background(betAmountCents == cents ? Palette.goldBright : Palette.chromeShadow)
             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
         }
         .disabled(isSpinning)
@@ -264,12 +275,12 @@ struct TripleSevensView: View {
             .scaleEffect(isSpinning ? 1.02 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: isSpinning)
         }
-        .disabled(isSpinning || engine.credits < betAmount)
+        .disabled(isSpinning || engine.credits < betAmountCents)
         .padding(.horizontal, 6)
     }
 
     private func performSpin() {
-        guard !isSpinning && engine.credits >= betAmount else { return }
+        guard !isSpinning && engine.credits >= betAmountCents else { return }
 
         isSpinning = true
 
@@ -278,7 +289,7 @@ struct TripleSevensView: View {
             try? await Task.sleep(nanoseconds: 500_000_000)
 
             // Call the engine to perform the spin
-            _ = await engine.spin(betAmount: betAmount)
+            _ = await engine.spin(betAmount: betAmountCents)
 
             isSpinning = false
         }
@@ -286,11 +297,22 @@ struct TripleSevensView: View {
 
     private var footer: some View {
         HStack {
-            ReadoutRow(label: "CREDIT", value: "$\(engine.credits)")
-            ReadoutRow(label: "BET", value: "$\(betAmount)")
+            ReadoutRow(label: "CREDIT", value: formatCents(engine.credits))
+            ReadoutRow(label: "BET", value: formatCents(betAmountCents))
         }
         .padding(.horizontal, 4)
         .padding(.bottom, 2)
+    }
+
+    // Helper function to format cents as currency string
+    private func formatCents(_ cents: Int) -> String {
+        let dollars = cents / 100
+        let remainingCents = cents % 100
+        if remainingCents == 0 {
+            return String(format: "$%.0f", Double(cents) / 100.0)
+        } else {
+            return String(format: "$%.2f", Double(cents) / 100.0)
+        }
     }
 }
 
