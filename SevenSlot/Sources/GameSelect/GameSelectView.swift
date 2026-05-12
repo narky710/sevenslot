@@ -28,7 +28,7 @@ struct GameSelectView: View {
 
     private var header: some View {
         VStack(spacing: 2) {
-            Text("POT-O-GOLD")
+            Text("SEVEN SLOT")
                 .font(AppFont.display(34))
                 .tracking(6)
                 .foregroundStyle(Palette.magenta)
@@ -65,7 +65,7 @@ struct GameSelectView: View {
         .padding(.horizontal, 4)
         .padding(.bottom, 2)
         .overlay(alignment: .bottom) {
-            Text("POG_510C/R510POG2 IND B:01 G:000001  ©︎ 1986-99 LEISURE TIME TECH., INC")
+            Text("SS7_1000/RRS7000 IND B:01 G:000001  ©︎ 2024-26 SEVEN SLOT LABS, INC")
                 .font(AppFont.meta(8))
                 .foregroundStyle(.white.opacity(0.45))
                 .padding(.bottom, -14)
