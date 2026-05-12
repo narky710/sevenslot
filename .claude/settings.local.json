@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -version)",
+      "Bash(xcrun simctl *)",
+      "Bash(mdfind -name \"Xcode.app\")",
+      "Bash(find /Applications -maxdepth 2 -name \"Xcode*\" 2>/dev/null; find /Users -maxdepth 4 -name \"Xcode.app\" 2>/dev/null | head -5; echo \"---\"; ls /Users/jeffreydewey/Claude/Slot/Slot/ && file \"/Users/jeffreydewey/Claude/Slot/Slot/pog510c bundle.zip\")",
+      "Bash(brew install *)",
+      "Bash(brew list *)",
+      "Bash(xcodes version *)",
+      "Bash(mas version *)",
+      "Bash(mas account *)",
+      "Bash(mas search *)"
+    ]
+  }
+}
