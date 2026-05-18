@@ -1,5 +1,10 @@
 # Diamond Riches — Web App Design Package
 
+> **Point-in-time handoff doc.** This package was written at a specific snapshot
+> of the codebase and may not reflect current `src/`. For live specs, read the
+> source at `src/games/diamondRiches/` and `src/engine/LuxuryEngine.ts` directly.
+> Screenshots in `screenshots/` were captured from the deployed app and are current.
+
 Prepared for external design-agency handoff. This package documents the
 **Diamond Riches** HTML5 slot game (a title within the *SevenSlot Web*
 collection) at a level of detail sufficient for an agency to redesign,
