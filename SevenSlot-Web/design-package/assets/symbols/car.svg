@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Sports Car">
+  <defs>
+    <linearGradient id="lux-car" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF6A6A"/>
+      <stop offset="100%" stop-color="#A1101B"/>
+    </linearGradient>
+    <linearGradient id="lux-silver" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F4F6FA"/>
+      <stop offset="50%" stop-color="#C2C8D4"/>
+      <stop offset="100%" stop-color="#7B8392"/>
+    </linearGradient>
+  </defs>
+  <path d="M 8 64 Q 14 50 30 48 Q 40 36 56 36 Q 76 36 84 50 Q 92 52 94 62 L 92 70 L 8 70 Z" fill="url(#lux-car)" stroke="#5A0A12" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M 36 48 Q 44 40 56 40 Q 68 40 74 50 Z" fill="#BfE4FF" stroke="#5A0A12" stroke-width="1.4"/>
+  <path d="M 14 63 L 88 63" stroke="#FFD23D" stroke-width="2" opacity="0.7"/>
+  <g>
+    <circle cx="30" cy="70" r="11" fill="#1A1A1E" stroke="#000" stroke-width="1.5"/>
+    <circle cx="30" cy="70" r="4.5" fill="url(#lux-silver)"/>
+    <circle cx="74" cy="70" r="11" fill="#1A1A1E" stroke="#000" stroke-width="1.5"/>
+    <circle cx="74" cy="70" r="4.5" fill="url(#lux-silver)"/>
+  </g>
+  <ellipse cx="50" cy="44" rx="20" ry="4" fill="#FFFFFF" opacity="0.35"/>
+</svg>

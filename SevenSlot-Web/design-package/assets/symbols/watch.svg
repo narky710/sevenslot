@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Luxury Watch">
+  <defs>
+    <linearGradient id="lux-gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF1B8"/>
+      <stop offset="45%" stop-color="#FFD23D"/>
+      <stop offset="100%" stop-color="#9A6B0E"/>
+    </linearGradient>
+  </defs>
+  <rect x="40" y="8" width="20" height="26" rx="4" fill="#2A2C34"/>
+  <rect x="40" y="66" width="20" height="26" rx="4" fill="#2A2C34"/>
+  <circle cx="50" cy="50" r="28" fill="url(#lux-gold)" stroke="#7A5408" stroke-width="2"/>
+  <circle cx="50" cy="50" r="21" fill="#10131A" stroke="#7A5408" stroke-width="1.5"/>
+  <line x1="50" y1="50" x2="50" y2="35" stroke="#FFF1B8" stroke-width="2.6" stroke-linecap="round"/>
+  <line x1="50" y1="50" x2="62" y2="56" stroke="#FFF1B8" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="50" cy="50" r="2.4" fill="#FFD23D"/>
+  <rect x="77" y="47" width="5" height="6" rx="1" fill="url(#lux-gold)"/>
+  <circle cx="66" cy="50" r="1.4" fill="#FFF1B8"/>
+  <circle cx="50" cy="66" r="1.4" fill="#FFF1B8"/>
+  <circle cx="34" cy="50" r="1.4" fill="#FFF1B8"/>
+  <circle cx="50" cy="34" r="1.4" fill="#FFF1B8"/>
+</svg>

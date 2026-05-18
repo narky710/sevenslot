@@ -1,0 +1,87 @@
+/* Diamond Riches — design tokens as CSS custom properties.
+   Mirrors the live :root and .lux-stage blocks in src/styles/index.css.
+   Drop-in: import this, then theme by overriding these variables. */
+
+:root {
+  /* Shared chassis palette */
+  --col-cabinet-1: #F2F2F4;
+  --col-cabinet-2: #BFC2CC;
+  --col-cabinet-3: #5C5F6B;
+  --col-cabinet-4: #2A2C34;
+  --col-field-1: #2A56D8;
+  --col-field-2: #1A38B0;
+  --col-field-3: #0E1F6E;
+  --col-field-deep: #061548;
+  --col-cell-bg: #0A1C4E;
+  --col-cell-bg-hi: #1F3AA0;
+  --col-red: #E51E1E;
+  --col-red-deep: #A50F0F;
+  --col-red-glow: #FF6262;
+  --col-gold: #FFD93D;
+  --col-gold-hot: #FFC828;
+  --col-gold-deep: #A88810;
+  --col-cream: #FFF6D8;
+  --col-amber-led: #FFB23D;
+  --col-chrome-1: #F4F5F8;
+  --col-chrome-2: #B4B8C2;
+  --col-chrome-3: #6E7280;
+  --col-chrome-deep: #2A2C34;
+
+  /* Sizing / radius / shadow */
+  --tap-target: 48px;
+  --stepper-compact: 32px;
+  --row-rail: 14px;
+  --radius-cabinet: 22px;
+  --radius-md: 8px;
+  --radius-sm: 4px;
+  --radius-cell: 5px;
+  --shadow-cabinet: 0 22px 40px rgba(0, 0, 0, 0.75), 0 2px 0 rgba(255, 255, 255, 0.15) inset;
+
+  /* Type */
+  --font-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-display-script: 'Snell Roundhand', 'Apple Chancery', 'Cochin', Georgia, serif;
+  --font-led: 'Menlo', 'Consolas', monospace;
+
+  /* Spacing scale (4px base) */
+  --space-0_5: 2px;
+  --space-1: 4px;
+  --space-1_5: 6px;
+  --space-2: 8px;
+  --content-gap: 5px;
+
+  /* Motion */
+  --reel-stop-base: 620ms;
+  --reel-stagger: 260ms;
+  --anticipation-extra: 700ms;
+  --autospin-delay: 600ms;
+  --ease-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Diamond Riches accent scope (apply on the game root element) */
+.lux-stage {
+  --lux-navy: #0A1A4A;
+  --lux-cyan: #00D4FF;
+  --lux-gold: #D4AF37;
+  --lux-diamond: #7FE3F5;
+  --lux-diamond-deep: #2A8FC8;
+
+  --lux-fever1-border: #D4AF37;
+  --lux-fever2-border: #C0C6D2;
+  --lux-fever3-border: #C77B3A;
+
+  --lux-cabinet-bezel: linear-gradient(180deg, #0A1A4A 0%, #061230 60%, #03081C 100%);
+  --lux-cabinet-field: radial-gradient(circle at 50% 30%, #16348A, #0A1A4A 60%, #050F30 100%);
+  --lux-cabinet-field-bonus: radial-gradient(circle at 50% 35%, #1B3F8C, #122A66 55%, #0A1740 100%);
+  --lux-cell: linear-gradient(180deg, #20407E, #0C1F50);
+  --lux-velvet:
+    radial-gradient(ellipse at center, rgba(120, 12, 20, 0.65), rgba(40, 4, 8, 0.92)),
+    repeating-linear-gradient(115deg, #6E0C14 0 14px, #5A0A10 14px 28px);
+
+  --shadow-cabinet-lux: 0 18px 36px rgba(0, 0, 0, 0.7);
+  --shadow-spin-cta:
+    0 4px 0 #0E4763, 0 6px 16px rgba(42, 143, 200, 0.55),
+    inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+
+  /* Recommended additions for the redesign (not yet in the live build): */
+  --focus-ring: 0 0 0 3px rgba(0, 212, 255, 0.6);
+}

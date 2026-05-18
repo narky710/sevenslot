@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Silver Bars">
+  <defs>
+    <linearGradient id="lux-silver" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F4F6FA"/>
+      <stop offset="50%" stop-color="#C2C8D4"/>
+      <stop offset="100%" stop-color="#7B8392"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#5A6170" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M 22 52 L 78 52 L 86 66 L 14 66 Z" fill="url(#lux-silver)"/>
+    <path d="M 12 68 L 52 68 L 60 84 L 4 84 Z" fill="url(#lux-silver)"/>
+    <path d="M 56 68 L 92 68 L 98 84 L 48 84 Z" fill="url(#lux-silver)"/>
+  </g>
+  <path d="M 24 55 L 76 55" stroke="#FFFFFF" stroke-width="2" opacity="0.65"/>
+  <path d="M 14 71 L 50 71" stroke="#FFFFFF" stroke-width="2" opacity="0.6"/>
+</svg>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Diamond Riches — Visual Mockups</title>
+<style>
+  /* ===== Design tokens (mirrors src/styles/index.css :root + .lux-stage) ===== */
+  :root{
+    --lux-navy:#0A1A4A; --lux-cyan:#00D4FF; --lux-gold:#D4AF37;
+    --lux-diamond:#7FE3F5; --lux-diamond-deep:#2A8FC8;
+    --col-gold:#FFD93D; --col-cream:#FFF6D8; --col-amber-led:#FFB23D;
+    --col-gold-deep:#A88810; --col-cell-bg:#0a1c4e; --col-cell-bg-hi:#1f3aa0;
+    --font-base:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+    --font-script:'Snell Roundhand','Apple Chancery','Cochin',Georgia,serif;
+    --font-led:'Menlo','Consolas',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#06080f;color:#cdd6e6;font-family:var(--font-base);padding:32px;line-height:1.5}
+  h1{font-family:var(--font-script);font-size:34px;color:var(--lux-gold);letter-spacing:1px}
+  h2{margin:38px 0 4px;font-size:15px;letter-spacing:3px;text-transform:uppercase;color:var(--lux-cyan)}
+  .sub{color:#7f8aa3;font-size:13px;max-width:900px}
+  .legend{margin:10px 0 20px;font-size:12px;color:#8893ad}
+  /* swatches */
+  .swatches{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 8px}
+  .sw{width:120px;border:1px solid #1c2638;border-radius:8px;overflow:hidden;font-size:10px}
+  .sw .chip{height:46px}.sw .meta{padding:6px;background:#0d1322}
+  .sw .meta b{display:block;color:#dfe6f4;font-size:11px}
+  /* symbol sheet */
+  .symsheet{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;max-width:760px}
+  .symsheet figure{background:#0d1322;border:1px solid #1c2638;border-radius:10px;padding:10px;text-align:center}
+  .symsheet svg{width:64px;height:64px}
+  .symsheet figcaption{font-size:10px;color:#8893ad;margin-top:6px;letter-spacing:1px;text-transform:uppercase}
+  /* board grid */
+  .boards{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;margin-top:14px}
+  .board{width:320px}
+  .board .cap{font-size:12px;color:#aebbd6;margin:10px 2px 4px}
+  .board .cap b{color:#fff;font-size:13px;display:block;letter-spacing:1px}
+  .board .notes{font-size:11px;color:#7f8aa3;margin:6px 2px 0;padding-left:14px}
+  .board .notes li{margin:2px 0}
+  /* ===== Cabinet (condensed but faithful recreation of .lux-stage) ===== */
+  /* Real target device proportion (the live build sizes by dvh, so the
+     cabinet renders taller than a strict 9:16 — matched here so the dense
+     portrait stack fits exactly as it does on a phone). */
+  .cab{width:320px;aspect-ratio:9/18.5;border-radius:18px;padding:7px;
+    background:linear-gradient(180deg,#0A1A4A 0%,#061230 60%,#03081C 100%);
+    box-shadow:0 18px 36px rgba(0,0,0,.7);position:relative;overflow:hidden}
+  .inner{width:100%;height:100%;border-radius:13px;overflow:hidden;
+    background:radial-gradient(circle at 50% 30%,#16348A,#0A1A4A 60%,#050F30 100%);
+    box-shadow:inset 0 0 22px rgba(0,0,0,.55);
+    display:flex;flex-direction:column;gap:5px;padding:8px}
+  .inner.bonus{background:radial-gradient(circle at 50% 35%,#1B3F8C,#122A66 55%,#0A1740 100%)}
+  .chrome{display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9fb0cf}
+  .chrome .clock{background:rgba(0,0,0,.4);padding:2px 7px;border-radius:5px;font-family:var(--font-led);color:var(--col-amber-led)}
+  .chrome .ic{display:flex;gap:4px}.chrome .ic span{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.08);display:grid;place-items:center;font-size:9px}
+  .jp{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+  .jp .p{background:linear-gradient(180deg,#1a1c24,#07080c);border:1.5px solid var(--col-gold-deep);
+    border-radius:6px;padding:4px;text-align:center}
+  .jp .p.f1{border-color:#D4AF37}.jp .p.f2{border-color:#C0C6D2}.jp .p.f3{border-color:#C77B3A}
+  .jp .l{font-size:7px;letter-spacing:1px;color:rgba(255,246,216,.7);font-weight:800}
+  .jp .v{font-family:var(--font-led);font-size:12px;font-weight:900;color:var(--col-gold);text-shadow:0 0 6px rgba(255,217,61,.5)}
+  .jp .f2 .v{color:#DCE2EE}.jp .f3 .v{color:#E9A86A}
+  .marq{font-family:var(--font-script);font-weight:700;font-size:22px;text-align:center;white-space:nowrap;
+    background:linear-gradient(180deg,#FFF1B8,#FFD23D 45%,#9A6B0E);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 1px 0 rgba(0,0,0,.8))}
+  .bsub{text-align:center;font-size:10px;font-weight:800;letter-spacing:3px;color:var(--lux-cyan);text-shadow:0 0 8px rgba(0,212,255,.6)}
+  .bbar{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;padding:5px 8px;border-radius:8px;
+    background:linear-gradient(180deg,rgba(127,227,245,.16),rgba(0,0,0,.35));border:1px solid rgba(127,227,245,.4)}
+  .bbar .st{display:flex;flex-direction:column;font-size:7px;color:rgba(255,246,216,.7);font-weight:800}
+  .bbar .st .n{font-family:var(--font-led);font-size:13px;color:var(--col-amber-led)}
+  .bbar .mult{background:linear-gradient(180deg,#2a2c34,#0a0b10);border:1.5px solid var(--col-gold-deep);
+    border-radius:8px;padding:2px 12px;text-align:center}
+  .bbar .mult .ml{font-size:7px;color:rgba(255,246,216,.7);font-weight:800;letter-spacing:1px}
+  .bbar .mult .mv{font-family:var(--font-led);font-size:20px;font-weight:900;color:var(--col-gold);text-shadow:0 0 8px var(--col-gold)}
+  .gemmeter{display:flex;align-items:center;justify-content:center;gap:3px;padding:4px;border-radius:8px;background:rgba(0,0,0,.4)}
+  .gemmeter i{width:13px;height:13px;clip-path:polygon(50% 0,100% 38%,50% 100%,0 38%);background:rgba(127,227,245,.18)}
+  .gemmeter i.on{background:var(--lux-diamond);box-shadow:0 0 5px var(--lux-diamond)}
+  .gemmeter .gc{font-family:var(--font-led);font-size:11px;color:var(--lux-diamond);margin-left:5px;font-weight:900}
+  /* Only the reel area flexes; every control row holds its size (mirrors the
+     live build, where the bottom UI is fixed and the matrix absorbs slack). */
+  .inner > .chrome,.inner > .jp,.inner > .marq,.inner > .bsub,.inner > .bbar,
+  .inner > .gemmeter,.inner > .readouts,.inner > .pips,.inner > .steprow,
+  .inner > .actrow,.inner > .winbadge{flex:0 0 auto}
+  .reelwrap{display:flex;flex:1 1 0;min-height:0;gap:4px}
+  .reels{min-height:0}
+  .board .cab{margin:0 auto}
+  .rail{display:flex;flex-direction:column;justify-content:space-around;width:14px;padding:8px 0}
+  .rail span{font-family:var(--font-led);font-size:9px;font-weight:900;color:rgba(0,212,255,.55);text-align:center}
+  .reels{position:relative;flex:1;display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:10px;
+    background:linear-gradient(180deg,rgba(0,0,0,.5),rgba(0,0,0,.25));
+    border:2px solid var(--lux-cyan);box-shadow:inset 0 2px 8px rgba(0,0,0,.7),0 0 0 1px rgba(0,212,255,.35),0 0 14px rgba(0,212,255,.2)}
+  .band{display:flex;flex:1;gap:5px;border-radius:6px;padding:4px;
+    background:linear-gradient(90deg,rgba(0,0,0,.5),rgba(0,0,0,.3));box-shadow:inset 0 0 10px rgba(0,0,0,.5)}
+  .cell{flex:1;min-width:0;border-radius:5px;display:grid;place-items:center;overflow:hidden;
+    background:radial-gradient(circle at 50% 28%,rgba(255,255,255,.16),transparent 62%),linear-gradient(180deg,#20407E,#0C1F50);
+    border:3px solid rgba(0,212,255,.55)}
+  .cell.win{border-color:var(--lux-diamond);box-shadow:0 0 16px var(--lux-diamond),inset 0 0 16px rgba(127,227,245,.4)}
+  .cell.dim{opacity:.4}
+  .cell svg{width:84%;height:84%}
+  .ovl{position:absolute;inset:8px;pointer-events:none}
+  .readouts{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+  .ro{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.07);border-radius:6px;padding:4px;text-align:center}
+  .ro .l{font-size:7px;letter-spacing:.8px;color:var(--col-cream);font-weight:800}
+  .ro .v{font-family:var(--font-led);font-size:13px;font-weight:900;color:var(--col-amber-led);text-shadow:0 0 6px rgba(255,178,61,.5)}
+  .ro .v.big{color:var(--col-gold)}
+  .pips{display:flex;align-items:center;gap:2px;padding:3px 6px;border-radius:5px;background:rgba(0,0,0,.32);box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+  .pips.act{box-shadow:inset 0 1px 2px rgba(0,0,0,.5),0 0 8px rgba(0,212,255,.45)}
+  .pips i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.12)}
+  .pips i.on{background:var(--lux-cyan);box-shadow:0 0 4px rgba(0,212,255,.7)}
+  .pips .c{flex:0 0 auto;margin-left:5px;font-family:var(--font-led);font-size:9px;font-weight:800;color:rgba(127,227,245,.85)}
+  .steprow{display:flex;align-items:center;gap:5px}
+  .grp{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .grp .gl{font-size:7px;font-weight:800;letter-spacing:1px;color:var(--col-cream)}
+  .grp .ctl{display:flex;align-items:center;gap:3px}
+  .stbtn{width:30px;height:30px;border-radius:6px;border:1px solid #2a3550;
+    background:linear-gradient(180deg,#39435f,#222d44);color:#cfe;font-size:16px;display:grid;place-items:center}
+  .stled{min-width:50px;height:30px;display:grid;place-items:center;background:rgba(0,0,0,.5);border-radius:5px;
+    font-family:var(--font-led);font-size:13px;color:var(--col-amber-led);font-weight:900;border:1px solid rgba(255,255,255,.07)}
+  .maxb{flex:0 0 40px;align-self:stretch;border-radius:6px;border:1px solid var(--col-gold-deep);
+    background:linear-gradient(180deg,#3a3320,#1a1709);color:var(--col-gold);font-size:11px;font-weight:800;display:grid;place-items:center}
+  .maxb.on{background:linear-gradient(180deg,#FFD93D,#A88810);color:#1a1400}
+  .actrow{display:flex;gap:5px;align-items:stretch;min-height:42px}
+  .spin{flex:2;border-radius:12px;border:none;display:grid;place-items:center;font-weight:900;font-size:14px;letter-spacing:2px;color:#eafcff;
+    background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.45),transparent 50%),linear-gradient(180deg,#8FE9F8,#2A8FC8,#176B96);
+    box-shadow:0 4px 0 #0E4763,0 6px 16px rgba(42,143,200,.55),inset 0 2px 0 rgba(255,255,255,.45)}
+  .spin.glow{box-shadow:0 4px 0 #0E4763,0 0 22px rgba(127,227,245,.7)}
+  .auto{flex:1;border-radius:12px;border:1px solid rgba(0,212,255,.4);background:rgba(0,0,0,.35);color:#bfefff;
+    font-size:10px;font-weight:800;display:grid;place-items:center}
+  .auto.act{background:linear-gradient(180deg,#FFD93D,#A88810);color:#1a1400;border-color:var(--col-gold-deep)}
+  .pays{flex:0 0 46px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.35);
+    color:#cdd6e6;font-size:8px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+  .pays b{font-size:13px}
+  .winbadge{text-align:center;font-size:11px;font-weight:900;letter-spacing:2px;padding:3px;border-radius:6px;
+    color:#1a1400;background:linear-gradient(180deg,#FFD93D,#C99A12)}
+  .winbadge.epic{background:linear-gradient(180deg,#9FF0FF,#2A8FC8);color:#04222e}
+  /* full-screen overlays inside a cabinet */
+  .scrim{position:absolute;inset:7px;border-radius:13px;display:grid;place-items:center;text-align:center;padding:18px}
+  .velvet{background:radial-gradient(ellipse at center,rgba(120,12,20,.85),rgba(20,2,4,.95)),repeating-linear-gradient(115deg,#6E0C14 0 14px,#5A0A10 14px 28px)}
+  .vframe{border:3px double var(--lux-gold);border-radius:14px;padding:20px 22px;
+    background:radial-gradient(ellipse at center,rgba(120,16,24,.6),rgba(20,2,4,.7));box-shadow:0 0 40px rgba(212,175,55,.5)}
+  .vframe .vt{font-family:var(--font-script);font-size:26px;color:var(--lux-gold);text-shadow:0 0 12px rgba(212,175,55,.7)}
+  .vframe .vs{font-size:10px;letter-spacing:3px;color:#F2D9A8;font-weight:700;margin:4px 0}
+  .vframe .vbig{font-size:22px;font-weight:900;color:var(--col-gold);margin:8px 0;text-shadow:0 0 12px rgba(255,217,61,.6)}
+  .vframe .cta{margin-top:14px;font-size:13px;font-weight:900;letter-spacing:3px;color:var(--lux-gold);text-shadow:0 0 10px rgba(212,175,55,.8)}
+  .vframe .cta small{display:block;margin-top:6px;font-size:10px;font-weight:700;letter-spacing:1.5px;color:rgba(242,217,168,.85);text-shadow:none}
+  .jpcel{background:radial-gradient(ellipse at center,rgba(212,175,55,.35),rgba(5,8,20,.96))}
+  .jpcel .t{font-family:var(--font-script);font-size:24px;color:var(--lux-gold)}
+  .jpcel .a{font-family:var(--font-led);font-size:26px;font-weight:900;color:#fff;text-shadow:0 0 16px var(--lux-gold)}
+  /* modal mock */
+  .modal{position:absolute;inset:7px;border-radius:13px;background:rgba(3,6,15,.92);padding:14px;overflow:hidden}
+  .modal h4{display:flex;justify-content:space-between;align-items:center;color:var(--col-gold);font-size:13px;letter-spacing:1px;border-bottom:1px solid rgba(212,175,55,.3);padding-bottom:8px}
+  .modal h4 .x{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.08);display:grid;place-items:center;font-size:10px;color:#cdd6e6}
+  .tabs{display:flex;gap:6px;margin:8px 0;font-size:10px}
+  .tabs span{padding:4px 8px;border-radius:5px;color:#8893ad}
+  .tabs span.a{background:rgba(0,212,255,.15);color:var(--lux-cyan);font-weight:800}
+  .payrow{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px}
+  .payrow svg{width:26px;height:26px;flex:0 0 26px}
+  .payrow .nm{flex:1;color:#cdd6e6}.payrow .mu{font-family:var(--font-led);color:var(--lux-cyan);font-size:9px}
+  .plgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px}
+  .plgrid .d{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .plgrid svg{width:100%;max-width:44px;border-radius:3px}
+  .plgrid .ll{font-size:7px;color:var(--col-cream);font-weight:700}
+  .chips{display:flex;gap:6px;justify-content:center;margin:12px 0}
+  .chips b{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;font-family:var(--font-led);
+    font-weight:900;color:var(--lux-cyan);background:rgba(0,0,0,.4);border:1px solid rgba(0,212,255,.35)}
+  footer{margin-top:48px;color:#566179;font-size:12px;border-top:1px solid #1c2638;padding-top:16px}
+</style>
+</head>
+<body>
+
+<h1>Diamond Riches — Visual Mockups</h1>
+<p class="sub">Pixel-faithful static recreations of every runtime state, built from the production design tokens
+(<code>tokens/design-tokens.css</code>) and the real symbol art (<code>assets/symbols/</code>). The shipping
+build is the source of truth for motion; these boards specify layout, color, hierarchy and copy. 9:16 portrait,
+shown at 320 px wide (≈ a 360 px phone).</p>
+<p class="legend">State IDs map 1:1 to <code>04-screens-and-states.md</code>. Annotations call out anything an
+agency must preserve.</p>
+
+<!-- ===== Global SVG symbol defs (single shared defs — mirrors the production fix) ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="g-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FFF1B8"/><stop offset="45%" stop-color="#FFD23D"/><stop offset="100%" stop-color="#9A6B0E"/></linearGradient>
+  <linearGradient id="g-goldbar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FFE07A"/><stop offset="100%" stop-color="#B8860B"/></linearGradient>
+  <linearGradient id="g-silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F4F6FA"/><stop offset="50%" stop-color="#C2C8D4"/><stop offset="100%" stop-color="#7B8392"/></linearGradient>
+  <linearGradient id="g-jet" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFFFFF"/><stop offset="55%" stop-color="#D8DEEA"/><stop offset="100%" stop-color="#8A93A6"/></linearGradient>
+  <linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7FC9FF"/><stop offset="100%" stop-color="#1E6FB8"/></linearGradient>
+  <linearGradient id="g-car" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6A6A"/><stop offset="100%" stop-color="#A1101B"/></linearGradient>
+  <radialGradient id="g-diamond" cx="42%" cy="32%" r="75%"><stop offset="0%" stop-color="#EAFBFF"/><stop offset="45%" stop-color="#7FE3F5"/><stop offset="100%" stop-color="#2A8FC8"/></radialGradient>
+  <linearGradient id="g-coin" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FFE680"/><stop offset="50%" stop-color="#F2B521"/><stop offset="100%" stop-color="#8A5A0B"/></linearGradient>
+  <linearGradient id="g-money" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7BD88F"/><stop offset="100%" stop-color="#1F7A3D"/></linearGradient>
+  <radialGradient id="g-burst" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="#2A5BC8"/><stop offset="70%" stop-color="#102A66"/><stop offset="100%" stop-color="#081A40"/></radialGradient>
+  <filter id="g-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+
+  <g id="s-JET"><g transform="rotate(-18 50 50)"><path d="M 12 52 Q 30 44 60 45 L 88 47 Q 94 50 88 53 L 60 55 Q 30 56 12 52 Z" fill="url(#g-jet)" stroke="#3A4252" stroke-width="2" stroke-linejoin="round"/><path d="M 86 47 Q 96 50 86 53 Z" fill="#9AA3B5"/><path d="M 44 50 L 26 78 L 40 78 L 60 51 Z" fill="url(#g-silver)" stroke="#3A4252" stroke-width="1.6"/><path d="M 46 49 L 30 22 L 44 22 L 62 49 Z" fill="#D8DEEA" stroke="#3A4252" stroke-width="1.6"/><path d="M 16 51 L 8 34 L 20 36 L 28 50 Z" fill="url(#g-silver)" stroke="#3A4252" stroke-width="1.6"/><g fill="#1E6FB8"><circle cx="56" cy="49" r="2"/><circle cx="64" cy="49.2" r="2"/><circle cx="72" cy="49.5" r="2"/><circle cx="80" cy="50" r="1.8"/></g></g></g>
+  <g id="s-YACHT"><path d="M 4 78 Q 26 84 50 78 Q 74 72 96 78 L 96 92 L 4 92 Z" fill="url(#g-sky)" opacity=".55"/><path d="M 14 64 L 90 64 L 78 80 Q 50 86 22 80 Z" fill="url(#g-silver)" stroke="#3A4252" stroke-width="2"/><path d="M 26 64 L 80 64 L 78 52 L 34 52 Z" fill="#EDF1F7" stroke="#3A4252" stroke-width="1.6"/><path d="M 40 52 L 74 52 L 72 42 L 46 42 Z" fill="#FFF" stroke="#3A4252" stroke-width="1.4"/><rect x="58" y="22" width="2.4" height="20" fill="#3A4252"/><g fill="#1E6FB8"><rect x="38" y="56" width="6" height="5"/><rect x="48" y="56" width="6" height="5"/><rect x="58" y="56" width="6" height="5"/><rect x="68" y="56" width="6" height="5"/></g></g>
+  <g id="s-CAR"><path d="M 8 64 Q 14 50 30 48 Q 40 36 56 36 Q 76 36 84 50 Q 92 52 94 62 L 92 70 L 8 70 Z" fill="url(#g-car)" stroke="#5A0A12" stroke-width="2"/><path d="M 36 48 Q 44 40 56 40 Q 68 40 74 50 Z" fill="#BfE4FF" stroke="#5A0A12" stroke-width="1.4"/><path d="M 14 63 L 88 63" stroke="#FFD23D" stroke-width="2" opacity=".7"/><circle cx="30" cy="70" r="11" fill="#1A1A1E" stroke="#000" stroke-width="1.5"/><circle cx="30" cy="70" r="4.5" fill="url(#g-silver)"/><circle cx="74" cy="70" r="11" fill="#1A1A1E" stroke="#000" stroke-width="1.5"/><circle cx="74" cy="70" r="4.5" fill="url(#g-silver)"/><ellipse cx="50" cy="44" rx="20" ry="4" fill="#FFF" opacity=".35"/></g>
+  <g id="s-MONEY"><g transform="translate(10 64)"><rect width="74" height="26" rx="3" fill="url(#g-money)" stroke="#0F4A24" stroke-width="1.8"/><circle cx="37" cy="13" r="9" fill="none" stroke="#0F4A24" stroke-width="1.6"/><text x="37" y="18" text-anchor="middle" font-family="Georgia,serif" font-size="13" font-weight="900" fill="#0F4A24">$</text></g><g transform="translate(14 48)"><rect width="74" height="26" rx="3" fill="url(#g-money)" stroke="#0F4A24" stroke-width="1.8"/><circle cx="37" cy="13" r="9" fill="none" stroke="#0F4A24" stroke-width="1.6"/><text x="37" y="18" text-anchor="middle" font-family="Georgia,serif" font-size="13" font-weight="900" fill="#0F4A24">$</text></g><g transform="translate(18 32)"><rect width="74" height="26" rx="3" fill="url(#g-money)" stroke="#0F4A24" stroke-width="1.8"/><circle cx="37" cy="13" r="9" fill="none" stroke="#0F4A24" stroke-width="1.6"/><text x="37" y="18" text-anchor="middle" font-family="Georgia,serif" font-size="13" font-weight="900" fill="#0F4A24">$</text></g></g>
+  <g id="s-RING"><ellipse cx="50" cy="66" rx="26" ry="24" fill="none" stroke="url(#g-gold)" stroke-width="9"/><path d="M 42 40 L 50 30 L 58 40 L 58 48 L 42 48 Z" fill="none" stroke="url(#g-gold)" stroke-width="3"/><path d="M 50 18 L 64 32 L 50 52 L 36 32 Z" fill="url(#g-diamond)" stroke="#1C6E96" stroke-width="1.8"/><path d="M 36 32 L 64 32 M 50 18 L 50 52" stroke="#FFF" stroke-width="1" opacity=".7"/></g>
+  <g id="s-WATCH"><rect x="40" y="8" width="20" height="26" rx="4" fill="#2A2C34"/><rect x="40" y="66" width="20" height="26" rx="4" fill="#2A2C34"/><circle cx="50" cy="50" r="28" fill="url(#g-gold)" stroke="#7A5408" stroke-width="2"/><circle cx="50" cy="50" r="21" fill="#10131A" stroke="#7A5408" stroke-width="1.5"/><line x1="50" y1="50" x2="50" y2="35" stroke="#FFF1B8" stroke-width="2.6" stroke-linecap="round"/><line x1="50" y1="50" x2="62" y2="56" stroke="#FFF1B8" stroke-width="2.6" stroke-linecap="round"/><circle cx="50" cy="50" r="2.4" fill="#FFD23D"/></g>
+  <g id="s-GOLD_BARS"><g stroke="#7A5408" stroke-width="1.8"><path d="M 20 50 L 80 50 L 88 64 L 12 64 Z" fill="url(#g-goldbar)"/><path d="M 10 66 L 52 66 L 60 82 L 4 82 Z" fill="url(#g-goldbar)"/><path d="M 50 66 L 92 66 L 98 82 L 44 82 Z" fill="url(#g-goldbar)"/><path d="M 32 34 L 68 34 L 74 48 L 26 48 Z" fill="url(#g-goldbar)"/></g></g>
+  <g id="s-SILVER_BARS"><g stroke="#5A6170" stroke-width="1.8"><path d="M 22 52 L 78 52 L 86 66 L 14 66 Z" fill="url(#g-silver)"/><path d="M 12 68 L 52 68 L 60 84 L 4 84 Z" fill="url(#g-silver)"/><path d="M 56 68 L 92 68 L 98 84 L 48 84 Z" fill="url(#g-silver)"/></g></g>
+  <g id="s-GOLD_BAR"><path d="M 22 40 L 78 40 L 90 70 L 10 70 Z" fill="url(#g-goldbar)" stroke="#7A5408" stroke-width="2.2"/><path d="M 22 40 L 78 40 L 74 48 L 26 48 Z" fill="#FFF7D6" opacity=".65"/><text x="50" y="63" text-anchor="middle" font-family="Georgia,serif" font-size="11" font-weight="900" fill="#7A5408">999.9</text></g>
+  <g id="s-WILD"><g filter="url(#g-glow)"><path d="M 30 34 L 50 13 L 70 34 L 50 74 Z" fill="url(#g-diamond)" stroke="#1C6E96" stroke-width="2.4"/><path d="M 30 34 L 70 34 M 50 13 L 50 74 M 30 34 L 50 50 L 70 34" stroke="#FFF" stroke-width="1.2" opacity=".75" fill="none"/></g><path d="M 14 80 Q 50 70 86 80 L 86 94 Q 50 86 14 94 Z" fill="#9A1B1B" stroke="#D4AF37" stroke-width="2"/><text x="50" y="91" text-anchor="middle" font-family="'Snell Roundhand',cursive" font-size="16" font-style="italic" font-weight="700" fill="#FFE07A">Double</text></g>
+  <g id="s-SCATTER"><rect x="6" y="6" width="88" height="88" rx="10" fill="url(#g-burst)" stroke="#1C3A78" stroke-width="2"/><circle cx="50" cy="50" r="30" fill="url(#g-coin)" stroke="#6E4708" stroke-width="3"/><circle cx="50" cy="50" r="24" fill="none" stroke="#FFF1B8" stroke-width="1.6" opacity=".7"/><path d="M 50 33 L 57 47 L 50 43 L 43 47 Z" fill="#6E4708"/><path d="M 38 52 Q 50 64 62 52 Q 56 60 50 60 Q 44 60 38 52 Z" fill="#6E4708"/></g>
+  <g id="s-BLANK"><rect x="14" y="14" width="72" height="72" rx="8" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.06)" stroke-width="1.5"/></g>
+</defs></svg>
+
+<h2>Color tokens — Diamond Riches accent</h2>
+<div class="swatches" id="sw"></div>
+
+<h2>Reel symbol art (12)</h2>
+<div class="symsheet" id="sheet"></div>
+
+<h2>Screen mockups</h2>
+<div class="boards" id="boards"></div>
+
+<footer>
+Diamond Riches design package · mockups generated from production tokens + art ·
+see <code>README.md</code> for the full index. Motion, timing &amp; haptics are specified in
+<code>05-motion-and-interaction.md</code>; these are static layout/visual mockups.
+</footer>
+
+<script>
+const SY = ["JET","YACHT","CAR","MONEY","RING","WATCH","GOLD_BARS","SILVER_BARS","GOLD_BAR","WILD","SCATTER","BLANK"];
+const LBL={JET:"Private Jet",YACHT:"Luxury Yacht",CAR:"Sports Car",MONEY:"Cash Stack",RING:"Diamond Ring",WATCH:"Luxury Watch",GOLD_BARS:"Gold Bars",SILVER_BARS:"Silver Bars",GOLD_BAR:"Gold Bar",WILD:"Diamond Wild",SCATTER:"Gold Coin",BLANK:"Blank"};
+const sym = id => `<svg viewBox="0 0 100 100"><use href="#s-${id}"/></svg>`;
+
+/* token swatches */
+const TOK=[["--lux-navy","#0A1A4A","theme base / bezel"],["--lux-cyan","#00D4FF","primary accent"],
+["--lux-gold","#D4AF37","secondary accent"],["--lux-diamond","#7FE3F5","gem / win line"],
+["--lux-diamond-deep","#2A8FC8","diamond shade"],["--col-gold","#FFD93D","LED gold"],
+["--col-amber-led","#FFB23D","LED amber"],["--col-cream","#FFF6D8","labels"]];
+sw.innerHTML=TOK.map(([n,h,u])=>`<div class="sw"><div class="chip" style="background:${h}"></div><div class="meta"><b>${h}</b>${n}<br><span style="color:#7f8aa3">${u}</span></div></div>`).join("");
+
+/* symbol sheet */
+sheet.innerHTML=SY.map(id=>`<figure>${sym(id)}<figcaption>${LBL[id]}</figcaption></figure>`).join("");
+
+/* cabinet builder. grid = array[5 rows][3 cols] of symbol ids; win = set of "r,c" */
+function reelMatrix(grid,win,preview){
+  let cells="";
+  for(let r=0;r<5;r++){let band="";
+    for(let c=0;c<3;c++){const k=r+","+c;const cls=win&&win.has(k)?"cell win":(win&&win.size?"cell dim":"cell");
+      band+=`<div class="${cls}">${sym((grid[r]&&grid[r][c])||"BLANK")}</div>`;}
+    cells+=`<div class="band">${band}</div>`;}
+  let ov="";
+  if(win&&win.size){ // single uniform diamond stroke through winning cells (top->bottom)
+    const pts=[...win].map(s=>s.split(",")).sort((a,b)=>a[0]-b[0]).map(([r,c])=>`${c*100+50},${r*100+50}`).join(" ");
+    ov=`<svg class="ovl" viewBox="0 0 300 500" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#7FE3F5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
+  if(preview){ // distinct hue per line, golden-angle
+    const lines=[[1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],[0,1,2,1,0],[2,1,0,1,2],[1,0,0,0,1],[1,2,2,2,1],[0,0,1,2,2],[2,2,1,0,0],[1,0,1,0,1],[1,2,1,2,1],[0,1,1,1,0]];
+    ov=`<svg class="ovl" viewBox="0 0 300 500" preserveAspectRatio="none">`+
+      lines.map((ln,i)=>{const h=Math.round((i*137.508)%360),l=i%2?54:66;
+        const p=ln.map((col,b)=>`${col*100+50},${b*100+50}`).join(" ");
+        return `<polyline points="${p}" fill="none" stroke="hsl(${h} 92% ${l}%)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>`;}).join("")+`</svg>`;}
+  return `<div class="reelwrap"><div class="rail"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>`+
+    `<div class="reels">${cells}${ov}</div></div>`;
+}
+function jpStrip(hit){return `<div class="jp">
+  <div class="p f1 ${hit==1?'h':''}"><div class="l">FEVER 1</div><div class="v">${hit==1?'JACKPOT!':'$1,481.26'}</div></div>
+  <div class="p f2"><div class="l">FEVER 2</div><div class="v">$597.74</div></div>
+  <div class="p f3"><div class="l">FEVER 3</div><div class="v">$475.35</div></div></div>`;}
+function pips(n,act){let s="";for(let i=0;i<20;i++)s+=`<i class="${i<n?'on':''}"></i>`;return `<div class="pips ${act?'act':''}">${s}<span class="c">${n}/20</span></div>`;}
+function readouts(a,b,c,bbig){return `<div class="readouts">
+  <div class="ro"><div class="l">CREDIT</div><div class="v">${a}</div></div>
+  <div class="ro"><div class="l">${b[0]}</div><div class="v">${b[1]}</div></div>
+  <div class="ro"><div class="l">${c[0]}</div><div class="v ${bbig?'big':''}">${c[1]}</div></div></div>`;}
+function steppers(lines,bet,maxOn){return `<div class="steprow">
+  <div class="grp"><div class="gl">LINES</div><div class="ctl"><div class="stbtn">−</div><div class="stled">${lines}</div><div class="stbtn">+</div></div></div>
+  <div class="grp"><div class="gl">BET/LINE</div><div class="ctl"><div class="stbtn">−</div><div class="stled">${bet}</div><div class="stbtn">+</div></div></div>
+  <div class="maxb ${maxOn?'on':''}">MAX</div></div>`;}
+function actrow(spinTxt,autoTxt,autoAct,glow){return `<div class="actrow">
+  <div class="spin ${glow?'glow':''}">${spinTxt}</div>
+  <div class="auto ${autoAct?'act':''}">${autoTxt}</div>
+  <div class="pays"><b>📖</b>PAYS</div></div>`;}
+
+function cab(opts){
+  const o=Object.assign({clock:"00:42",jp:0,bonus:false,marquee:`<div class="marq">DIAMOND RICHES</div>`,
+    bbar:"",gem:"",grid:[],win:null,preview:false,ro:readouts("$500.00",["TOTAL BET","$4.00"],["LAST WIN","$0"]),
+    pips:pips(20,false),step:steppers(20,"$0.20",true),act:actrow("SPIN","AUTO",false,false),
+    badge:"",scrim:""},opts);
+  return `<div class="cab"><div class="inner ${o.bonus?'bonus':''}">
+    <div class="chrome"><div class="clock">● ${o.clock}</div><div class="ic"><span>✕</span><span>🔊</span><span>i</span></div></div>
+    ${jpStrip(o.jp)}${o.marquee}${o.bbar}${o.gem}
+    ${reelMatrix(o.grid,o.win,o.preview)}
+    ${o.ro}${o.pips}${o.step}${o.act}${o.badge}
+  </div>${o.scrim}</div>`;
+}
+
+const G_IDLE=[["BLANK","BLANK","BLANK"],["SILVER_BARS","GOLD_BARS","RING"],["WATCH","MONEY","GOLD_BARS"],["YACHT","CAR","MONEY"],["JET","SILVER_BARS","WATCH"]];
+const G_WIN=[["CAR","CAR","CAR"],["WILD","RING","JET"],["RING","WILD","SILVER_BARS"],["MONEY","WATCH","CAR"],["GOLD_BARS","JET","GOLD_BAR"]];
+const G_BONUS=[["WILD","CAR","GOLD_BAR"],["JET","SILVER_BARS","JET"],["CAR","SILVER_BARS","WILD"],["GOLD_BARS","WATCH","CAR"],["GOLD_BARS","WATCH","JET"]];
+
+const BOARDS=[
+ {id:"S1",t:"Base — idle (default)",notes:["Quiet resting state.","All readouts populated; pip strip 20/20.","SPIN enabled; MAX active."],
+  o:{}},
+ {id:"S2",t:"Base — line adjusting (preview)",notes:["Each active payline its own hue (golden-angle).","Pip strip glows; count + TOTAL BET recompute live.","Auto-fades 4.5 s or on any other action."],
+  o:{grid:G_IDLE,preview:true,pips:pips(12,true),ro:readouts("$500.00",["TOTAL BET","$2.40"],["LAST WIN","$0"]),step:steppers(12,"$0.20",false)}},
+ {id:"S4–S5",t:"Win — BIG (payline + badge)",notes:["ALL winning lines share ONE color (#7FE3F5).","Winning cells highlight; others dim.","BIG/MEGA/EPIC → celebration; auto-play pauses → RESUME."],
+  o:{grid:G_WIN,win:new Set(["0,0","0,1","0,2"]),ro:readouts("$612.00",["TOTAL BET","$4.00"],["LAST WIN","$112.00"],true),
+     act:actrow("SPIN","RESUME (24)",true,false),badge:`<div class="winbadge">BIG WIN</div>`}},
+ {id:"S6",t:"Bonus — intro (interactive)",notes:["Full-screen red-velvet, gold double frame.","TAP TO START + live countdown.","120 s manual / 15 s during an auto-run."],
+  o:{bonus:true,scrim:`<div class="scrim velvet"><div class="vframe"><div class="vt">Diamond Riches</div><div class="vs">BONUS REELS IN PLAY</div><div style="font-size:30px;margin:6px">💰</div><div class="vbig">12 Free Spins Won!</div><div class="vs">multiplier climbs to 29× · retriggers add +12</div><div class="cta">TAP TO START<small>auto-starts in 00:15</small></div></div></div>`}},
+ {id:"S7–S8",t:"Bonus — free spins in play",notes:["Field warms; marquee → BONUS REELS IN PLAY.","Bonus bar + diamond collection meter.","SPIN shows FREE SPINS (glow, non-interactive)."],
+  o:{bonus:true,clock:"01:18",marquee:`<div class="marq">DIAMOND RICHES</div><div class="bsub">BONUS REELS IN PLAY</div>`,
+     bbar:`<div class="bbar"><div class="st">SPINS<br>REMAINING<span class="n">9</span></div><div class="mult"><div class="ml">MULTIPLIER</div><div class="mv">5×</div></div><div class="st">BONUS<span class="n">$3.20</span></div></div>`,
+     gem:`<div class="gemmeter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><span class="gc">4</span></div>`,
+     grid:G_BONUS,ro:readouts("$597.20",["MULT","5×"],["BONUS WIN","$3.20"],true),pips:pips(20,false),
+     step:steppers(20,"$0.20",true),act:actrow("FREE SPINS","AUTO (53)",true,true)}},
+ {id:"S10",t:"Bonus — outro (interactive)",notes:["Win total presented on red-velvet.","TAP TO CONTINUE + countdown.","60 s manual / 30 s during an auto-run, then auto-spin resumes."],
+  o:{bonus:true,scrim:`<div class="scrim velvet"><div class="vframe"><div class="vs" style="font-family:var(--font-script);font-size:18px;color:#F2D9A8">Congratulations!</div><div class="vt">Free Spin Bonus</div><div class="vbig">◆ $148.60 Won ◆</div><div class="cta">TAP TO CONTINUE<small>auto-continues in 00:30</small></div></div></div>`}},
+ {id:"S11",t:"Progressive jackpot won",notes:["Full-screen flash + confetti.","FEVER tier shows JACKPOT HIT! then reseeds.","Can occur on a base or bonus spin."],
+  o:{jp:1,scrim:`<div class="scrim jpcel"><div><div class="t">FEVER 1 JACKPOT!</div><div class="a">$1,481.26</div><div class="vs" style="color:#F2D9A8">Added to your credits</div></div></div>`}},
+ {id:"S12",t:"Modal — Paytable › Payouts",notes:["Symbol pays × bet/line, top→bottom from row 1.","Specials: WILD (rows 2/3/4, doubles), SCATTER (× total).","Bonus rules block follows."],
+  o:{scrim:`<div class="modal"><h4>DIAMOND RICHES PAYTABLE<span class="x">✕</span></h4><div class="tabs"><span class="a">PAYOUTS</span><span>RULES &amp; LINES</span></div>
+    <div class="payrow"><svg viewBox="0 0 100 100"><use href="#s-JET"/></svg><span class="nm">Private Jet</span><span class="mu">5:×3686 4:×369 3:×37 2:×8</span></div>
+    <div class="payrow"><svg viewBox="0 0 100 100"><use href="#s-RING"/></svg><span class="nm">Diamond Ring</span><span class="mu">5:×147 4:×55 3:×11</span></div>
+    <div class="payrow"><svg viewBox="0 0 100 100"><use href="#s-WILD"/></svg><span class="nm">Diamond Wild — rows 2/3/4, subs every symbol incl. Scatter, doubles</span></div>
+    <div class="payrow"><svg viewBox="0 0 100 100"><use href="#s-SCATTER"/></svg><span class="nm">Gold Coin — × total bet · 3+ = 12 free spins</span></div></div>`}},
+ {id:"S13",t:"Modal — Paytable › Rules & Lines",notes:["How-to copy: spin left→right, pay top→bottom.","20 mini payline diagrams, 3-wide × 5-tall.","Fairness + RTP 95.0%."],
+  o:{scrim:`<div class="modal"><h4>DIAMOND RICHES PAYTABLE<span class="x">✕</span></h4><div class="tabs"><span>PAYOUTS</span><span class="a">RULES &amp; LINES</span></div><div class="ll" style="color:#cdd6e6;font-size:10px;margin:2px 0 6px">20 PAYLINES · top→bottom</div><div class="plgrid" id="plg"></div></div>`}},
+ {id:"S15",t:"Modal — Auto-spin picker",notes:["Preset chips 5/10/25/50/100.","Note: pauses on BIG+, resumes after a bonus.","Manual vs auto-run countdown lengths differ."],
+  o:{scrim:`<div class="modal"><h4>AUTO SPIN<span class="x">✕</span></h4><p style="text-align:center;font-size:10px;letter-spacing:2px;color:#8893ad;margin:14px 0">CHOOSE NUMBER OF SPINS</p><div class="chips"><b>5</b><b>10</b><b>25</b><b>50</b><b>100</b></div><p style="font-size:10px;color:#7f8aa3;margin-top:14px">Auto-spin <b style="color:#cdd6e6">pauses on a BIG win or greater</b> and waits for RESUME. A free-spin bonus does not end the run — it <b style="color:#cdd6e6">resumes the remaining count</b> afterward.</p></div>`}},
+];
+
+boards.innerHTML=BOARDS.map(b=>`<div class="board">${cab(b.o)}<div class="cap"><b>${b.id} · ${b.t}</b></div><ul class="notes">${b.notes.map(n=>`<li>${n}</li>`).join("")}</ul></div>`).join("");
+
+/* fill the 20 mini payline diagrams in S13 (3 wide x 5 tall, top->bottom) */
+const PL=[[1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],[0,1,2,1,0],[2,1,0,1,2],[1,0,0,0,1],[1,2,2,2,1],[0,0,1,2,2],[2,2,1,0,0],[1,0,1,0,1],[1,2,1,2,1],[0,1,1,1,0],[2,1,1,1,2],[0,1,0,1,0],[2,1,2,1,2],[0,0,2,0,0],[2,2,0,2,2],[1,0,2,0,1],[1,2,0,2,1],[0,2,0,2,0]];
+const plg=document.getElementById("plg");
+if(plg) plg.innerHTML=PL.map((ln,i)=>{
+  let rects="";for(let b=0;b<5;b++)for(let c=0;c<3;c++)rects+=`<rect x="${c*18+2}" y="${b*18+2}" width="14" height="14" rx="2" fill="#1c3ab3" stroke="#3a5fd9" stroke-width=".8"/>`;
+  const pts=ln.map((c,b)=>`${c*18+9},${b*18+9}`).join(" ");
+  return `<div class="d"><svg viewBox="0 0 54 90">${rects}<polyline points="${pts}" fill="none" stroke="#7FE3F5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="ll">Line ${i+1}</span></div>`;
+}).join("");
+</script>
+</body>
+</html>

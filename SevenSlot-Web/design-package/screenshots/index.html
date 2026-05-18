@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SevenSlot Web — Screenshot Gallery</title>
+<style>
+  :root {
+    --navy: #0A1A4A;
+    --gold: #D4AF37;
+    --cyan: #00D4FF;
+    --bg: #06080f;
+    --card-bg: #0d1322;
+    --border: #1c2638;
+    --text: #cdd6e6;
+    --muted: #7f8aa3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px 32px; line-height: 1.5; }
+
+  header { margin-bottom: 48px; }
+  h1 { font-size: 28px; color: var(--gold); letter-spacing: 1px; margin-bottom: 6px; }
+  .subtitle { color: var(--muted); font-size: 14px; }
+
+  section { margin-bottom: 56px; }
+  h2 { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+
+  .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
+  .card:hover { border-color: var(--cyan); }
+  .card img { width: 100%; display: block; aspect-ratio: 430 / 932; object-fit: cover; background: var(--navy); }
+  .card .label { padding: 10px 12px; font-size: 12px; color: var(--muted); }
+
+  /* Lightbox */
+  #lb { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100; align-items: center; justify-content: center; }
+  #lb.open { display: flex; }
+  #lb img { max-height: 92vh; max-width: 92vw; border-radius: 8px; object-fit: contain; }
+  #lb-close { position: fixed; top: 20px; right: 24px; font-size: 28px; color: #fff; cursor: pointer; opacity: 0.7; line-height: 1; }
+  #lb-close:hover { opacity: 1; }
+  #lb-caption { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); color: var(--muted); font-size: 13px; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SevenSlot Web — Screenshot Gallery</h1>
+  <p class="subtitle">Live captures from <code>https://sevenslot-beta.vercel.app</code> · iPhone 14 Pro viewport (430 × 932)</p>
+</header>
+
+<section>
+  <h2>Lobby</h2>
+  <div class="grid" id="lobby"></div>
+</section>
+
+<section>
+  <h2>Triple Sevens</h2>
+  <div class="grid" id="triple-sevens"></div>
+</section>
+
+<section>
+  <h2>Double-Up Keno</h2>
+  <div class="grid" id="double-up-keno"></div>
+</section>
+
+<section>
+  <h2>Diamond Riches</h2>
+  <div class="grid" id="diamond-riches"></div>
+</section>
+
+<div id="lb">
+  <span id="lb-close">✕</span>
+  <img id="lb-img" src="" alt="" />
+  <span id="lb-caption"></span>
+</div>
+
+<script>
+const screens = {
+  lobby: [
+    { src: 'lobby/01_lobby.png', label: 'Lobby — game selector' },
+  ],
+  'triple-sevens': [
+    { src: 'triple-sevens/02_triple-sevens.png', label: 'Main screen — idle' },
+    { src: 'triple-sevens/03_triple-sevens_game-info.png', label: 'Game info modal' },
+    { src: 'triple-sevens/04_triple-sevens_paytable-payouts.png', label: 'Paytable — Payouts' },
+    { src: 'triple-sevens/05_triple-sevens_paytable-rules.png', label: 'Paytable — Rules & Paylines' },
+    { src: 'triple-sevens/06_triple-sevens_after-spin.png', label: 'After spin' },
+  ],
+  'double-up-keno': [
+    { src: 'double-up-keno/01_main.png', label: 'Main screen — empty card' },
+    { src: 'double-up-keno/02_paytable.png', label: 'Paytable / How to play' },
+    { src: 'double-up-keno/03_spots-selected.png', label: 'Spots selected (Quick Pick)' },
+    { src: 'double-up-keno/04_result.png', label: 'Game result' },
+  ],
+  'diamond-riches': [
+    { src: 'diamond-riches/16_diamond-riches.png', label: 'Main screen — idle' },
+    { src: 'diamond-riches/17_diamond-riches_game-info.png', label: 'Game info modal' },
+    { src: 'diamond-riches/18_diamond-riches_paytable.png', label: 'Paytable' },
+    { src: 'diamond-riches/19_diamond-riches_spin-1.png', label: 'After spin' },
+    { src: 'diamond-riches/19_diamond-riches_spin-2.png', label: 'After spin (2)' },
+    { src: 'diamond-riches/20_diamond-riches_free-spins-won.png', label: 'Free Spins Won — intro banner' },
+    { src: 'diamond-riches/21_diamond-riches_free-spins-active.png', label: 'Free Spins — active' },
+  ],
+};
+
+function label(src) {
+  return src.split('/').pop().replace(/^\d+_?/, '').replace(/_/g, ' ').replace('.png', '');
+}
+
+const lb = document.getElementById('lb');
+const lbImg = document.getElementById('lb-img');
+const lbCap = document.getElementById('lb-caption');
+
+function openLb(src, caption) {
+  lbImg.src = src;
+  lbCap.textContent = caption;
+  lb.classList.add('open');
+}
+document.getElementById('lb-close').onclick = () => lb.classList.remove('open');
+lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') lb.classList.remove('open'); });
+
+for (const [id, items] of Object.entries(screens)) {
+  const grid = document.getElementById(id);
+  items.forEach(({ src, label }) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<img src="${src}" alt="${label}" loading="lazy"><div class="label">${label}</div>`;
+    card.onclick = () => openLb(src, label);
+    grid.appendChild(card);
+  });
+}
+</script>
+</body>
+</html>

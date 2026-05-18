@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Luxury Yacht">
+  <defs>
+    <linearGradient id="lux-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7FC9FF"/>
+      <stop offset="100%" stop-color="#1E6FB8"/>
+    </linearGradient>
+    <linearGradient id="lux-silver" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F4F6FA"/>
+      <stop offset="50%" stop-color="#C2C8D4"/>
+      <stop offset="100%" stop-color="#7B8392"/>
+    </linearGradient>
+  </defs>
+  <path d="M 4 78 Q 26 84 50 78 Q 74 72 96 78 L 96 92 L 4 92 Z" fill="url(#lux-sky)" opacity="0.55"/>
+  <path d="M 14 64 L 90 64 L 78 80 Q 50 86 22 80 Z" fill="url(#lux-silver)" stroke="#3A4252" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M 26 64 L 80 64 L 78 52 L 34 52 Z" fill="#EDF1F7" stroke="#3A4252" stroke-width="1.6"/>
+  <path d="M 40 52 L 74 52 L 72 42 L 46 42 Z" fill="#FFFFFF" stroke="#3A4252" stroke-width="1.4"/>
+  <rect x="58" y="22" width="2.4" height="20" fill="#3A4252"/>
+  <g fill="#1E6FB8">
+    <rect x="38" y="56" width="6" height="5"/><rect x="48" y="56" width="6" height="5"/>
+    <rect x="58" y="56" width="6" height="5"/><rect x="68" y="56" width="6" height="5"/>
+  </g>
+</svg>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Gold Coin Scatter">
+  <defs>
+    <linearGradient id="lux-coin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFE680"/>
+      <stop offset="50%" stop-color="#F2B521"/>
+      <stop offset="100%" stop-color="#8A5A0B"/>
+    </linearGradient>
+    <radialGradient id="lux-coin-burst" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#2A5BC8"/>
+      <stop offset="70%" stop-color="#102A66"/>
+      <stop offset="100%" stop-color="#081A40"/>
+    </radialGradient>
+  </defs>
+  <rect x="6" y="6" width="88" height="88" rx="10" fill="url(#lux-coin-burst)" stroke="#1C3A78" stroke-width="2"/>
+  <g stroke="#3E6FD0" stroke-width="2" opacity="0.35">
+    <line x1="50" y1="50" x2="96.00" y2="50.00"/>
+    <line x1="50" y1="50" x2="92.50" y2="67.60"/>
+    <line x1="50" y1="50" x2="82.52" y2="82.52"/>
+    <line x1="50" y1="50" x2="67.60" y2="92.50"/>
+    <line x1="50" y1="50" x2="50.00" y2="96.00"/>
+    <line x1="50" y1="50" x2="32.40" y2="92.50"/>
+    <line x1="50" y1="50" x2="17.48" y2="82.52"/>
+    <line x1="50" y1="50" x2="7.50" y2="67.60"/>
+    <line x1="50" y1="50" x2="4.00" y2="50.00"/>
+    <line x1="50" y1="50" x2="7.50" y2="32.40"/>
+    <line x1="50" y1="50" x2="17.48" y2="17.48"/>
+    <line x1="50" y1="50" x2="32.40" y2="7.50"/>
+    <line x1="50" y1="50" x2="50.00" y2="4.00"/>
+    <line x1="50" y1="50" x2="67.60" y2="7.50"/>
+    <line x1="50" y1="50" x2="82.52" y2="17.48"/>
+    <line x1="50" y1="50" x2="92.50" y2="32.40"/>
+  </g>
+  <circle cx="50" cy="50" r="30" fill="url(#lux-coin)" stroke="#6E4708" stroke-width="3"/>
+  <circle cx="50" cy="50" r="24" fill="none" stroke="#FFF1B8" stroke-width="1.6" opacity="0.7"/>
+  <path d="M 50 33 L 57 47 L 50 43 L 43 47 Z" fill="#6E4708"/>
+  <path d="M 38 52 Q 50 64 62 52 Q 56 60 50 60 Q 44 60 38 52 Z" fill="#6E4708"/>
+  <ellipse cx="42" cy="40" rx="7" ry="4" fill="#FFFFFF" opacity="0.4" transform="rotate(-30 42 40)"/>
+</svg>

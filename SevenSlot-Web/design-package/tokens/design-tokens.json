@@ -1,0 +1,120 @@
+{
+  "$description": "Diamond Riches design tokens. Extracted verbatim from src/styles/index.css (:root and .lux-stage). Style-Dictionary-compatible nesting; each leaf has value + type.",
+  "color": {
+    "chassis": {
+      "cabinet1": { "value": "#F2F2F4", "type": "color" },
+      "cabinet2": { "value": "#BFC2CC", "type": "color" },
+      "cabinet3": { "value": "#5C5F6B", "type": "color" },
+      "cabinet4": { "value": "#2A2C34", "type": "color" },
+      "field1": { "value": "#2A56D8", "type": "color" },
+      "field2": { "value": "#1A38B0", "type": "color" },
+      "field3": { "value": "#0E1F6E", "type": "color" },
+      "fieldDeep": { "value": "#061548", "type": "color" },
+      "cellBg": { "value": "#0A1C4E", "type": "color" },
+      "cellBgHi": { "value": "#1F3AA0", "type": "color" },
+      "red": { "value": "#E51E1E", "type": "color" },
+      "redDeep": { "value": "#A50F0F", "type": "color" },
+      "redGlow": { "value": "#FF6262", "type": "color" },
+      "gold": { "value": "#FFD93D", "type": "color" },
+      "goldHot": { "value": "#FFC828", "type": "color" },
+      "goldDeep": { "value": "#A88810", "type": "color" },
+      "cream": { "value": "#FFF6D8", "type": "color" },
+      "amberLed": { "value": "#FFB23D", "type": "color" },
+      "chrome1": { "value": "#F4F5F8", "type": "color" },
+      "chrome2": { "value": "#B4B8C2", "type": "color" },
+      "chrome3": { "value": "#6E7280", "type": "color" },
+      "chromeDeep": { "value": "#2A2C34", "type": "color" }
+    },
+    "lux": {
+      "navy": { "value": "#0A1A4A", "type": "color", "comment": "theme base / cabinet bezel" },
+      "cyan": { "value": "#00D4FF", "type": "color", "comment": "primary accent" },
+      "gold": { "value": "#D4AF37", "type": "color", "comment": "secondary accent" },
+      "diamond": { "value": "#7FE3F5", "type": "color", "comment": "gem + winning payline" },
+      "diamondDeep": { "value": "#2A8FC8", "type": "color" }
+    },
+    "feverBorder": {
+      "fever1": { "value": "#D4AF37", "type": "color" },
+      "fever2": { "value": "#C0C6D2", "type": "color" },
+      "fever3": { "value": "#C77B3A", "type": "color" }
+    },
+    "winTier": {
+      "win": { "value": "#FFB23D", "type": "color", "threshold": ">=3x" },
+      "big": { "value": "#FFD93D", "type": "color", "threshold": ">=10x" },
+      "mega": { "value": "#FFD93D", "type": "color", "threshold": ">=25x" },
+      "epic": { "value": "#7FE3F5", "type": "color", "threshold": ">=50x" }
+    }
+  },
+  "gradient": {
+    "cabinetBezelLux": { "value": "linear-gradient(180deg,#0A1A4A 0%,#061230 60%,#03081C 100%)", "type": "gradient" },
+    "cabinetFieldLux": { "value": "radial-gradient(circle at 50% 30%,#16348A,#0A1A4A 60%,#050F30 100%)", "type": "gradient" },
+    "cabinetFieldBonus": { "value": "radial-gradient(circle at 50% 35%,#1B3F8C,#122A66 55%,#0A1740 100%)", "type": "gradient" },
+    "cellLux": { "value": "linear-gradient(180deg,#20407E,#0C1F50)", "type": "gradient" },
+    "velvet": { "value": "radial-gradient(ellipse at center,rgba(120,12,20,.65),rgba(40,4,8,.92)), repeating-linear-gradient(115deg,#6E0C14 0 14px,#5A0A10 14px 28px)", "type": "gradient" }
+  },
+  "typography": {
+    "fontBase": { "value": "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif", "type": "fontFamily" },
+    "fontDisplayScript": { "value": "'Snell Roundhand','Apple Chancery','Cochin',Georgia,serif", "type": "fontFamily", "comment": "spec a licensed roundhand webfont substitute" },
+    "fontLed": { "value": "'Menlo','Consolas',monospace", "type": "fontFamily", "comment": "spec a licensed mono webfont substitute" },
+    "size": {
+      "microLabel": { "value": "8px", "type": "fontSize" },
+      "pip": { "value": "9px", "type": "fontSize" },
+      "label": { "value": "11px", "type": "fontSize" },
+      "readout": { "value": "14px", "type": "fontSize" },
+      "stepper": { "value": "18px", "type": "fontSize" },
+      "bonusMultiplier": { "value": "26px", "type": "fontSize" },
+      "titleClamp": { "value": "clamp(15px,5vw,28px)", "type": "fontSize" },
+      "bannerClamp": { "value": "clamp(22px,6vw,38px)", "type": "fontSize" }
+    },
+    "weight": { "regular": { "value": "400" }, "bold": { "value": "800" }, "black": { "value": "900" } }
+  },
+  "space": {
+    "base": { "value": "4px", "type": "spacing" },
+    "x0_5": { "value": "2px", "type": "spacing" },
+    "x1": { "value": "4px", "type": "spacing" },
+    "x1_5": { "value": "6px", "type": "spacing" },
+    "x2": { "value": "8px", "type": "spacing" },
+    "contentGap": { "value": "5px", "type": "spacing" }
+  },
+  "size": {
+    "tapTarget": { "value": "48px", "type": "sizing" },
+    "stepperCompact": { "value": "32px", "type": "sizing" },
+    "rowRail": { "value": "14px", "type": "sizing" },
+    "cabinetMaxW": { "value": "540px", "type": "sizing" },
+    "cabinetMaxH": { "value": "940px", "type": "sizing" },
+    "cabinetAspect": { "value": "9 / 16", "type": "other" }
+  },
+  "radius": {
+    "cabinet": { "value": "22px", "type": "borderRadius" },
+    "md": { "value": "8px", "type": "borderRadius" },
+    "sm": { "value": "4px", "type": "borderRadius" },
+    "cell": { "value": "5px", "type": "borderRadius" }
+  },
+  "shadow": {
+    "cabinet": { "value": "0 22px 40px rgba(0,0,0,.75), inset 0 2px 0 rgba(255,255,255,.15)", "type": "boxShadow" },
+    "cabinetLux": { "value": "0 18px 36px rgba(0,0,0,.7)", "type": "boxShadow" },
+    "cellInset": { "value": "inset 0 1px 0 rgba(255,255,255,.12), inset 0 -1px 2px rgba(0,0,0,.4)", "type": "boxShadow" },
+    "spinCta": { "value": "0 4px 0 #0E4763, 0 6px 16px rgba(42,143,200,.55), inset 0 2px 0 rgba(255,255,255,.45), inset 0 -2px 0 rgba(0,0,0,.3)", "type": "boxShadow" }
+  },
+  "motion": {
+    "reelStopBaseMs": { "value": 620, "type": "duration" },
+    "reelStaggerMs": { "value": 260, "type": "duration" },
+    "anticipationExtraMs": { "value": 700, "type": "duration" },
+    "autoSpinDelayMs": { "value": 600, "type": "duration" },
+    "easeOvershoot": { "value": "cubic-bezier(0.34,1.56,0.64,1)", "type": "cubicBezier" },
+    "bannerCountdownManual": { "intro": { "value": 120, "type": "duration" }, "outro": { "value": 60, "type": "duration" } },
+    "bannerCountdownAuto": { "intro": { "value": 15, "type": "duration" }, "outro": { "value": 30, "type": "duration" } }
+  },
+  "game": {
+    "creditValueDollars": { "value": 0.01 },
+    "lineBetStepsCredits": { "value": [1, 2, 3, 5, 10, 20] },
+    "lineCountRange": { "value": [1, 20] },
+    "maxTotalBetDollars": { "value": 4.0 },
+    "paylines": { "value": 20 },
+    "rtp": { "value": "95.0%" },
+    "freeSpins": { "value": 12 },
+    "bonusMultiplierMin": { "value": 2 },
+    "bonusMultiplierMax": { "value": 29 },
+    "scattersToTrigger": { "value": 3 },
+    "feverSeeds": { "fever1": { "value": 1000.0 }, "fever2": { "value": 500.0 }, "fever3": { "value": 250.0 } }
+  }
+}
