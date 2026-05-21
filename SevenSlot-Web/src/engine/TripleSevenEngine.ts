@@ -1,10 +1,20 @@
 import { MersenneTwister } from './MersenneTwister';
+import { type GameMeters, initMeters, cloneMeters, recordSpin } from '../utils/meters';
 
 export interface GameState {
   credits: number;
   reelPositions: [number, number, number, number, number, number, number, number, number]; // 3x3 grid
   lastWinAmount: number;
   isSpinning: boolean;
+  // ── Accounting meters (Phase 2) ──────────────────────────────────────────
+  /** Total spins played this session. */
+  spinCount: number;
+  /** Cumulative cents wagered this session. */
+  coinIn: number;
+  /** Cumulative cents paid out this session. */
+  coinOut: number;
+  /** Rolling log of the last 100 spin events. */
+  gameEvents: GameMeters['gameEvents'];
 }
 
 /** 1 credit = 5 cents. Bets are denominated in whole credits. */
@@ -64,6 +74,7 @@ export class TripleSevenEngine {
 
   private reelSymbolCount = 14;
   private state: GameState;
+  private meters: GameMeters;
 
   // ────────────────────────────────────────────────────────────────────
   //  REEL WEIGHTING — drives RTP without touching the paytable
@@ -160,16 +171,27 @@ export class TripleSevenEngine {
   constructor(initialCredits: number = 100000, rngSeed?: number) {
     const seed = rngSeed !== undefined ? rngSeed : TripleSevenEngine.generateEntropySeed();
     this.rng = new MersenneTwister(seed);
+    this.meters = initMeters();
     this.state = {
       credits: initialCredits,
       reelPositions: [0, 0, 0, 0, 0, 0, 0, 0, 0], // 3x3 grid
       lastWinAmount: 0,
-      isSpinning: false
+      isSpinning: false,
+      spinCount: 0,
+      coinIn: 0,
+      coinOut: 0,
+      gameEvents: [],
     };
   }
 
   getState(): GameState {
-    return { ...this.state };
+    return {
+      ...this.state,
+      gameEvents: cloneMeters(this.meters).gameEvents,
+      spinCount: this.meters.spinCount,
+      coinIn: this.meters.coinIn,
+      coinOut: this.meters.coinOut,
+    };
   }
 
   private calculateWinAll8Lines(
@@ -284,9 +306,7 @@ export class TripleSevenEngine {
    * Returns the total win amount in cents.
    */
   async spin(totalBetCents: number): Promise<number> {
-    if (this.state.credits < totalBetCents) {
-      return 0;
-    }
+    // BETA: credit check removed — overdraft allowed during testing.
 
     const perLineBets = distributeBetCents(totalBetCents);
 
@@ -319,6 +339,16 @@ export class TripleSevenEngine {
     }
 
     this.state.isSpinning = false;
+
+    // ── Accounting meters ─────────────────────────────────────────────────────
+    recordSpin(this.meters, 'triple7', totalBetCents, winAmount, {
+      reelPositions: [...positions],
+    });
+    this.state.spinCount = this.meters.spinCount;
+    this.state.coinIn    = this.meters.coinIn;
+    this.state.coinOut   = this.meters.coinOut;
+    this.state.gameEvents = this.meters.gameEvents;
+
     return winAmount;
   }
 

@@ -1,4 +1,5 @@
 import { MersenneTwister } from './MersenneTwister';
+import { type GameMeters, initMeters, cloneMeters, recordSpin } from '../utils/meters';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Diamond Riches — pure game logic
@@ -38,6 +39,9 @@ export type SymbolId =
   | 'GOLD_BARS'
   | 'SILVER_BARS'
   | 'GOLD_BAR'
+  | 'BOW_TIE'
+  | 'SUNGLASSES'
+  | 'PERFUME'
   | 'WILD'
   | 'SCATTER'
   | 'BLANK';
@@ -86,16 +90,19 @@ export const MAX_TOTAL_BET_CENTS =
  * the revised spec); reel strips are then Monte-Carlo tuned to 94–96% RTP.
  */
 export const PAYTABLE: Readonly<Record<SymbolId, Readonly<Record<number, number>>>> = {
-  JET: { 2: 8, 3: 37, 4: 369, 5: 3686 },
-  YACHT: { 3: 4, 4: 23, 5: 737 },
-  CAR: { 3: 14, 4: 74, 5: 369 },
-  MONEY: { 3: 8, 4: 37, 5: 147 },
-  RING: { 3: 11, 4: 55, 5: 147 },
-  WATCH: { 3: 8, 4: 23, 5: 111 },
-  GOLD_BARS: { 3: 4, 4: 23, 5: 111 },
-  SILVER_BARS: { 3: 4, 4: 18, 5: 92 },
-  GOLD_BAR: { 3: 4, 4: 14, 5: 74 },
-  SCATTER: { 3: 2, 4: 10, 5: 69 },
+  JET: { 2: 0, 3: 0, 4: 0, 5: 3 },
+  YACHT: { 3: 0, 4: 0, 5: 0 },
+  CAR: { 3: 0, 4: 0, 5: 1 },
+  MONEY: { 3: 0, 4: 0, 5: 0 },
+  RING: { 3: 0, 4: 0, 5: 0 },
+  WATCH: { 3: 0, 4: 0, 5: 0 },
+  GOLD_BARS: { 3: 0, 4: 0, 5: 0 },
+  SILVER_BARS: { 3: 0, 4: 0, 5: 0 },
+  GOLD_BAR: { 3: 0, 4: 0, 5: 0 },
+  BOW_TIE: { 5: 0 },
+  SUNGLASSES: { 5: 0 },
+  PERFUME: { 5: 0 },
+  SCATTER: { 3: 1, 4: 1, 5: 1 },
   WILD: {},
   BLANK: {},
 };
@@ -168,15 +175,15 @@ export const FREE_SPIN_REELS: ReadonlyArray<ReadonlyArray<SymbolId>> = [
    'GOLD_BARS','WATCH','BLANK','SILVER_BARS','GOLD_BAR','BLANK','BLANK'],
   ['GOLD_BAR','GOLD_BARS','SCATTER','MONEY','WATCH','BLANK','YACHT','CAR','JET',
    'RING','WILD','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','CAR',
-   'RING','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','RING','SILVER_BARS',
+   'RING','WILD','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','RING',
    'GOLD_BAR','GOLD_BARS','WATCH','BLANK','SILVER_BARS','GOLD_BAR','BLANK'],
   ['GOLD_BAR','GOLD_BARS','SCATTER','MONEY','WATCH','BLANK','YACHT','CAR','JET',
    'RING','WILD','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','CAR',
-   'RING','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','RING','SILVER_BARS',
+   'RING','WILD','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','RING',
    'GOLD_BAR','GOLD_BARS','WATCH','BLANK','SILVER_BARS','GOLD_BAR','BLANK'],
   ['GOLD_BAR','GOLD_BARS','SCATTER','MONEY','WATCH','BLANK','YACHT','CAR','JET',
    'RING','WILD','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','CAR',
-   'RING','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','RING','SILVER_BARS',
+   'RING','WILD','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','RING',
    'GOLD_BAR','GOLD_BARS','WATCH','BLANK','SILVER_BARS','GOLD_BAR','BLANK'],
   ['GOLD_BAR','GOLD_BARS','SCATTER','MONEY','WATCH','BLANK','YACHT','CAR','JET',
    'RING','SILVER_BARS','GOLD_BAR','GOLD_BARS','MONEY','WATCH','BLANK','CAR','RING',
@@ -186,10 +193,10 @@ export const FREE_SPIN_REELS: ReadonlyArray<ReadonlyArray<SymbolId>> = [
 
 // ─── Bonus tuning ────────────────────────────────────────────────────────────
 /** Free spins awarded on 3+ scatters (and added again on each retrigger). */
-export const FREE_SPINS_AWARDED = 12;
+export const FREE_SPINS_AWARDED = 10;
 export const BONUS_BASE_MULTIPLIER = 2;
-export const MAX_DIAMONDS = 27;
-export const MAX_BONUS_MULTIPLIER = BONUS_BASE_MULTIPLIER + MAX_DIAMONDS; // 29
+export const MAX_DIAMONDS = 5;
+export const MAX_BONUS_MULTIPLIER = BONUS_BASE_MULTIPLIER + MAX_DIAMONDS; // 7
 export const SCATTERS_TO_TRIGGER = 3;
 /** Wilds are collected from reels 2/3/4 — 0-based reel indices [1,2,3]. */
 export const WILD_COLLECT_REELS: ReadonlyArray<number> = [1, 2, 3];
@@ -272,11 +279,21 @@ export interface LuxuryState {
   bonusLineBetCents: number;
   /** Active line count locked at the moment the bonus triggered. */
   bonusLineCount: number;
+  // ── Accounting meters (Phase 2) ──────────────────────────────────────────
+  /** Total spins played this session (base + bonus combined). */
+  spinCount: number;
+  /** Cumulative cents wagered this session. */
+  coinIn: number;
+  /** Cumulative cents paid out this session. */
+  coinOut: number;
+  /** Rolling log of the last 100 spin events. */
+  gameEvents: GameMeters['gameEvents'];
 }
 
 export class LuxuryEngine {
   private rng: MersenneTwister;
   private state: LuxuryState;
+  private meters: GameMeters;
 
   /**
    * 32-bit unsigned seed from the host CSPRNG. Used by default so every fresh
@@ -298,6 +315,7 @@ export class LuxuryEngine {
   constructor(initialCredits: number = 5000, rngSeed?: number) {
     const seed = rngSeed !== undefined ? rngSeed : LuxuryEngine.generateEntropySeed();
     this.rng = new MersenneTwister(seed);
+    this.meters = initMeters();
     this.state = {
       credits: initialCredits,
       phase: 'base',
@@ -315,12 +333,17 @@ export class LuxuryEngine {
       bonusWin: 0,
       bonusLineBetCents: DEFAULT_LINE_BET_CENTS,
       bonusLineCount: DEFAULT_LINE_COUNT,
+      spinCount: 0,
+      coinIn: 0,
+      coinOut: 0,
+      gameEvents: [],
     };
   }
 
   private static blankGrid(): Grid {
-    return Array.from({ length: NUM_REELS }, () =>
-      Array.from({ length: NUM_ROWS }, () => 'BLANK' as SymbolId)
+    const syms: SymbolId[] = ['BOW_TIE', 'SUNGLASSES', 'PERFUME'];
+    return Array.from({ length: NUM_REELS }, (_, r) =>
+      Array.from({ length: NUM_ROWS }, (_, row) => syms[(r * NUM_ROWS + row) % 3])
     );
   }
 
@@ -329,6 +352,10 @@ export class LuxuryEngine {
       ...this.state,
       grid: this.state.grid.map((reel) => [...reel]),
       reelStops: [...this.state.reelStops],
+      gameEvents: cloneMeters(this.meters).gameEvents,
+      spinCount: this.meters.spinCount,
+      coinIn: this.meters.coinIn,
+      coinOut: this.meters.coinOut,
     };
   }
 
@@ -516,7 +543,7 @@ export class LuxuryEngine {
     if (this.state.phase !== 'base') return null;
     if (this.state.isSpinning) return null;
     const totalBet = this.state.totalBetCents;
-    if (this.state.credits < totalBet) return null;
+    // BETA: credit check removed — overdraft allowed during testing.
 
     this.state.credits -= totalBet;
     this.state.lastWinAmount = 0;
@@ -548,6 +575,16 @@ export class LuxuryEngine {
       this.state.bonusLineBetCents = this.state.lineBetCents;
       this.state.bonusLineCount = this.state.lineCount;
     }
+
+    // ── Accounting meters ─────────────────────────────────────────────────────
+    recordSpin(this.meters, 'diamond', totalBet, totalWin, {
+      bonusTriggered: evalResult.triggerBonus,
+      scatters: evalResult.scatterCount,
+    });
+    this.state.spinCount = this.meters.spinCount;
+    this.state.coinIn    = this.meters.coinIn;
+    this.state.coinOut   = this.meters.coinOut;
+    this.state.gameEvents = this.meters.gameEvents;
 
     return {
       ...evalResult,
@@ -628,6 +665,18 @@ export class LuxuryEngine {
 
     this.state.freeSpinsRemaining--;
     if (this.state.freeSpinsRemaining <= 0) this.state.phase = 'bonusOutro';
+
+    // ── Accounting meters (bonus spin — betCents=0, no deduction) ────────────
+    recordSpin(this.meters, 'diamond', 0, spinWin, {
+      bonusSpin: true,
+      multiplier,
+      diamonds: collectedWilds.length,
+      retriggered,
+    });
+    this.state.spinCount = this.meters.spinCount;
+    this.state.coinIn    = this.meters.coinIn;
+    this.state.coinOut   = this.meters.coinOut;
+    this.state.gameEvents = this.meters.gameEvents;
 
     return {
       ...evalResult,

@@ -8,8 +8,10 @@ import {
   MIN_TOTAL_CREDITS,
 } from '../../engine/TripleSevenEngine';
 import { getSymbolSVG } from '../../symbols/TripleSevensSymbols';
-import { audio as rawAudio, type WinTier } from '../../audio';
+import { audio as rawAudio } from '../../audio';
 import { haptics as rawHaptics } from '../../haptics';
+import { classifyWinTier, type WinTier } from '../../utils/winTier';
+import { loadCredits, saveCredits } from '../../utils/creditStorage';
 import '../../styles/index.css';
 
 /**
@@ -77,15 +79,6 @@ type ModalState = 'none' | 'paytable' | 'info' | 'autospin';
 // Auto-spin presets the player can pick when starting a session.
 const AUTOSPIN_PRESETS = [5, 10, 25, 50, 100] as const;
 
-function classifyWinTier(winCents: number, betCents: number, isJackpot: boolean): WinTier | null {
-  if (winCents <= 0) return null;
-  if (isJackpot) return 'jackpot';
-  const ratio = winCents / betCents;
-  if (ratio >= 100) return 'mega';
-  if (ratio >= 25) return 'big';
-  if (ratio >= 5) return 'win';
-  return 'small';
-}
 
 function formatCents(cents: number): string {
   // Engine multipliers like ×62.5 can produce fractional cents; round to whole.
@@ -115,7 +108,7 @@ interface Props {
 }
 
 export default function TripleSevensView({ onExit }: Props = {}) {
-  const engineRef = useRef(new TripleSevenEngine(100000)); // $1000.00
+  const engineRef = useRef(new TripleSevenEngine(loadCredits()));
 
   const [state, setState] = useState<GameState>(engineRef.current.getState());
   const [betAmountCents, setBetAmountCents] = useState(5);
@@ -138,6 +131,9 @@ export default function TripleSevensView({ onExit }: Props = {}) {
   const [muted, setMuted] = useState(false);
   const [sessionStart] = useState(() => Date.now());
   const [sessionMs, setSessionMs] = useState(0);
+
+  // Persist credits whenever the balance changes.
+  useEffect(() => { saveCredits(state.credits); }, [state.credits]);
 
   const autoSpinIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const winCountIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -180,7 +176,7 @@ export default function TripleSevensView({ onExit }: Props = {}) {
   };
 
   const handleSpin = useCallback(() => {
-    if (isSpinning || state.credits < betAmountCents) return;
+    if (isSpinning) return; // BETA: credit check removed — overdraft allowed
 
     // First-tap audio unlock
     audio.unlock();
@@ -301,7 +297,7 @@ export default function TripleSevensView({ onExit }: Props = {}) {
           setAutoSpinCount(0);
         }
 
-        const tier = classifyWinTier(newState.lastWinAmount, betAmountCents, isJackpot);
+        const tier = classifyWinTier(newState.lastWinAmount, betAmountCents, 'slot', isJackpot);
         setWinTier(tier);
 
         if (tier) {
@@ -339,7 +335,7 @@ export default function TripleSevensView({ onExit }: Props = {}) {
   useEffect(() => {
     if (autoSpinEnabled && autoSpinCount > 0 && !isSpinning && modal === 'none') {
       autoSpinIntervalRef.current = setTimeout(() => {
-        if (state.credits >= betAmountCents) {
+        { // BETA: credit check removed — overdraft allowed
           setAutoSpinCount((p) => p - 1);
           handleSpin();
         } else {
@@ -669,7 +665,7 @@ export default function TripleSevensView({ onExit }: Props = {}) {
             <button
               className={`spin-button ${isSpinning ? 'spinning' : ''} ${isJackpotPending ? 'jackpot-glow' : ''}`}
               onClick={handleSpin}
-              disabled={isSpinning || state.credits < betAmountCents}
+              disabled={isSpinning} // BETA: credit check removed
               aria-label={isSpinning ? 'Spinning' : 'Spin reels'}
             >
               <span className="spin-button-inner">
@@ -682,7 +678,7 @@ export default function TripleSevensView({ onExit }: Props = {}) {
               <button
                 className={`autospin-button ${autoSpinEnabled ? 'active' : ''}`}
                 onClick={handleAutoSpinClick}
-                disabled={state.credits < betAmountCents}
+                disabled={false} // BETA: credit check removed
                 aria-label={autoSpinEnabled ? `Stop auto-spin (${autoSpinCount} remaining)` : 'Choose auto-spin count'}
                 aria-pressed={autoSpinEnabled}
               >
@@ -849,22 +845,6 @@ export default function TripleSevensView({ onExit }: Props = {}) {
                 </dl>
               </section>
 
-              <section className="info-section rg-section">
-                <h3>Play Responsibly</h3>
-                <p>Set a budget. Take regular breaks. Gambling should be entertainment, not a way to make money.</p>
-                <p className="rg-resources">
-                  <strong>U.S.:</strong> 1-800-GAMBLER ·{' '}
-                  <a href="https://www.ncpgambling.org" target="_blank" rel="noopener noreferrer">
-                    ncpgambling.org
-                  </a>
-                </p>
-                <p className="rg-resources">
-                  <strong>UK:</strong>{' '}
-                  <a href="https://www.gamcare.org.uk" target="_blank" rel="noopener noreferrer">
-                    gamcare.org.uk
-                  </a>
-                </p>
-              </section>
             </div>
           </div>
         </div>

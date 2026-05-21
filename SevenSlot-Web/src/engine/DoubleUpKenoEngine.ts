@@ -1,4 +1,5 @@
 import { MersenneTwister } from './MersenneTwister';
+import { type GameMeters, initMeters, cloneMeters, recordSpin } from '../utils/meters';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Double-Up Keno — pure game logic
@@ -76,6 +77,15 @@ export interface KenoState {
   /** Win paid for the most recent resolved round (cents). */
   lastWinAmount: number;
   phase: KenoPhase;
+  // ── Accounting meters (Phase 2) ──────────────────────────────────────────
+  /** Total rounds played this session. */
+  spinCount: number;
+  /** Cumulative cents wagered this session (includes double-up deductions). */
+  coinIn: number;
+  /** Cumulative cents paid out this session. */
+  coinOut: number;
+  /** Rolling log of the last 100 round events. */
+  gameEvents: GameMeters['gameEvents'];
 }
 
 // ─── Hypergeometric pmf for analytical RTP at engine init ────────────────────
@@ -108,6 +118,7 @@ export function designedRTP(spots: number): number {
 export class DoubleUpKenoEngine {
   private rng: MersenneTwister;
   private state: KenoState;
+  private meters: GameMeters;
 
   private static generateEntropySeed(): number {
     const buf = new Uint32Array(1);
@@ -123,6 +134,7 @@ export class DoubleUpKenoEngine {
   constructor(initialCredits: number = 10000, rngSeed?: number) {
     const seed = rngSeed !== undefined ? rngSeed : DoubleUpKenoEngine.generateEntropySeed();
     this.rng = new MersenneTwister(seed);
+    this.meters = initMeters();
     this.state = {
       credits: initialCredits,
       picks: [],
@@ -133,6 +145,10 @@ export class DoubleUpKenoEngine {
       lastHits: 0,
       lastWinAmount: 0,
       phase: 'idle',
+      spinCount: 0,
+      coinIn: 0,
+      coinOut: 0,
+      gameEvents: [],
     };
   }
 
@@ -142,6 +158,10 @@ export class DoubleUpKenoEngine {
       picks: [...this.state.picks],
       drawnNumbers: [...this.state.drawnNumbers],
       firstHalfDrawn: [...this.state.firstHalfDrawn],
+      gameEvents: cloneMeters(this.meters).gameEvents,
+      spinCount: this.meters.spinCount,
+      coinIn: this.meters.coinIn,
+      coinOut: this.meters.coinOut,
     };
   }
 
@@ -213,7 +233,7 @@ export class DoubleUpKenoEngine {
   play(): number {
     if (this.state.phase !== 'idle') return -1;
     if (this.state.picks.length < MIN_SPOTS) return -1;
-    if (this.state.credits < this.state.currentBet) return -1;
+    // BETA: credit check removed — overdraft allowed during testing.
 
     this.state.credits -= this.state.currentBet;
     this.state.roundBet = this.state.currentBet;
@@ -249,7 +269,7 @@ export class DoubleUpKenoEngine {
    */
   doubleUp(): number {
     if (this.state.phase !== 'awaitingChoice') return -1;
-    if (this.state.credits < this.state.currentBet) return -1;
+    // BETA: credit check removed — overdraft allowed during testing.
     this.state.credits -= this.state.currentBet;
     this.state.roundBet = this.state.currentBet * 2;
     return this.resolveSecondHalf();
@@ -292,6 +312,18 @@ export class DoubleUpKenoEngine {
     this.state.lastWinAmount = win;
     if (win > 0) this.state.credits += win;
     this.state.phase = 'resolved';
+
+    // ── Accounting meters ─────────────────────────────────────────────────────
+    recordSpin(this.meters, 'keno', this.state.roundBet, win, {
+      spots: this.state.picks.length,
+      hits,
+      doubled: this.state.roundBet > this.state.currentBet,
+    });
+    this.state.spinCount = this.meters.spinCount;
+    this.state.coinIn    = this.meters.coinIn;
+    this.state.coinOut   = this.meters.coinOut;
+    this.state.gameEvents = this.meters.gameEvents;
+
     return win;
   }
 

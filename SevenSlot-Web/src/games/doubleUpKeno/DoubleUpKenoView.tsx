@@ -13,6 +13,8 @@ import {
   designedRTP,
 } from '../../engine/DoubleUpKenoEngine';
 import '../../styles/index.css';
+import { classifyWinTier, type WinTier } from '../../utils/winTier';
+import { loadCredits, saveCredits } from '../../utils/creditStorage';
 
 interface Props {
   onExit: () => void;
@@ -25,24 +27,16 @@ function formatCents(cents: number): string {
   return rem === 0 ? `$${dollars}` : `$${dollars}.${rem.toString().padStart(2, '0')}`;
 }
 
-type WinTier = 'small' | 'win' | 'big' | 'mega' | 'jackpot' | null;
-
-function classifyWinTier(winCents: number, betCents: number): WinTier {
-  if (winCents <= 0 || betCents <= 0) return null;
-  const ratio = winCents / betCents;
-  if (ratio >= 1000) return 'jackpot';
-  if (ratio >= 100) return 'mega';
-  if (ratio >= 25) return 'big';
-  if (ratio >= 5) return 'win';
-  return 'small';
-}
-
 export default function DoubleUpKenoView({ onExit }: Props) {
-  const engineRef = useRef(new DoubleUpKenoEngine(100000));
+  const engineRef = useRef(new DoubleUpKenoEngine(loadCredits()));
   const [state, setState] = useState<KenoState>(() => engineRef.current.getState());
   const [showPaytable, setShowPaytable] = useState(false);
 
-  const sync = () => setState(engineRef.current.getState());
+  const sync = () => {
+    const s = engineRef.current.getState();
+    setState(s);
+    saveCredits(s.credits);
+  };
 
   const togglePick = (n: number) => {
     if (state.phase !== 'idle') return;
@@ -53,7 +47,7 @@ export default function DoubleUpKenoView({ onExit }: Props) {
 
   const handlePlay = () => {
     if (state.picks.length < MIN_SPOTS) return;
-    if (state.credits < state.currentBet) return;
+    // BETA: credit check removed — overdraft allowed
     engineRef.current.play();
     sync();
   };
@@ -89,16 +83,13 @@ export default function DoubleUpKenoView({ onExit }: Props) {
     return n;
   }, [state.firstHalfDrawn, pickSet]);
 
-  const canPlay =
-    spotsPlayed >= MIN_SPOTS &&
-    state.phase === 'idle' &&
-    state.credits >= state.currentBet;
-
-  const canDouble = state.phase === 'awaitingChoice' && state.credits >= state.currentBet;
+  // BETA: credit check removed — overdraft allowed during testing.
+  const canPlay = spotsPlayed >= MIN_SPOTS && state.phase === 'idle';
+  const canDouble = state.phase === 'awaitingChoice';
 
   const winTier =
     state.phase === 'resolved' && state.lastWinAmount > 0
-      ? classifyWinTier(state.lastWinAmount, state.roundBet)
+      ? classifyWinTier(state.lastWinAmount, state.roundBet, 'keno')
       : null;
 
   // Drawn-strip rendering: pad to 20 cells so the strip keeps its shape
@@ -442,6 +433,12 @@ export default function DoubleUpKenoView({ onExit }: Props) {
                   </div>
                 </div>
               )}
+
+              <div className="paytable-col">
+                <h3 className="paytable-col-header">FAIRNESS</h3>
+                <p>Outcomes use a Mersenne Twister RNG seeded at launch from system entropy.</p>
+                <p>Theoretical return to player: <strong>95.0%</strong></p>
+              </div>
             </div>
           </div>
         </div>

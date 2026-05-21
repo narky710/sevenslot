@@ -23,7 +23,9 @@ import {
   type JackpotTier,
 } from '../../engine/JackpotService';
 import { getLuxurySymbolSVG, SYMBOL_LABELS, LuxurySymbolDefs } from '../../symbols/LuxurySymbols';
-import { audio as rawAudio, type WinTier } from '../../audio';
+import { audio as rawAudio } from '../../audio';
+import { classifyWinTier, type WinTier } from '../../utils/winTier';
+import { loadCredits, saveCredits } from '../../utils/creditStorage';
 import { haptics as rawHaptics } from '../../haptics';
 import '../../styles/index.css';
 
@@ -68,22 +70,6 @@ const GAME_RTP = '95.0%';
 const AUTOSPIN_PRESETS = [5, 10, 25, 50, 100] as const;
 
 type ModalState = 'none' | 'paytable' | 'info' | 'autospin';
-type LuxTier = 'small' | 'win' | 'big' | 'mega' | 'epic';
-
-/** Map a luxury tier to the shared audio kit's WinTier (epic reuses jackpot). */
-const audioTierFor = (t: LuxTier): WinTier =>
-  t === 'epic' ? 'jackpot' : t === 'mega' ? 'mega' : t === 'big' ? 'big' : t === 'win' ? 'win' : 'small';
-
-// Revised spec §5: BIG 10×, MEGA 25×, EPIC 50× total bet.
-function classifyWinTier(winCents: number, totalBetCents: number): LuxTier | null {
-  if (winCents <= 0 || totalBetCents <= 0) return null;
-  const ratio = winCents / totalBetCents;
-  if (ratio >= 50) return 'epic';
-  if (ratio >= 25) return 'mega';
-  if (ratio >= 10) return 'big';
-  if (ratio >= 3) return 'win';
-  return 'small';
-}
 
 /** Jackpot meters are dollars; bets/credits are credits (1 credit = $0.01). */
 function formatDollars(n: number): string {
@@ -113,6 +99,7 @@ const prefersReducedMotion = () =>
 
 const TUMBLE_POOL: SymbolId[] = [
   'JET', 'YACHT', 'CAR', 'MONEY', 'RING', 'WATCH', 'GOLD_BARS', 'SILVER_BARS', 'GOLD_BAR',
+  'BOW_TIE', 'SUNGLASSES', 'PERFUME',
 ];
 
 interface Props {
@@ -120,7 +107,7 @@ interface Props {
 }
 
 export default function DiamondRichesView({ onExit }: Props = {}) {
-  const engineRef = useRef(new LuxuryEngine(50000)); // 50,000 credits ($500)
+  const engineRef = useRef(new LuxuryEngine(loadCredits()));
   const jackpotRef = useRef<JackpotService>(createJackpotService());
 
   const [state, setState] = useState<LuxuryState>(engineRef.current.getState());
@@ -149,7 +136,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   const [linePreview, setLinePreview] = useState(false);
   const [winCells, setWinCells] = useState<Set<string>>(new Set());
   const [displayWinAmount, setDisplayWinAmount] = useState(0);
-  const [winTier, setWinTier] = useState<LuxTier | null>(null);
+  const [winTier, setWinTier] = useState<WinTier | null>(null);
   const [collectingCells, setCollectingCells] = useState<Set<string>>(new Set());
   const [bonusBanner, setBonusBanner] = useState<'intro' | 'outro' | null>(null);
   // When set, the banner waits for a player tap before proceeding.
@@ -161,6 +148,9 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   const [muted, setMuted] = useState(false);
   const [sessionStart] = useState(() => Date.now());
   const [sessionMs, setSessionMs] = useState(0);
+
+  // Persist credits whenever the balance changes.
+  useEffect(() => { saveCredits(state.credits); }, [state.credits]);
 
   const reelStopTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Mutable snapshot so the tumble interval reads the latest stopped flags
@@ -262,11 +252,11 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   );
 
   // ---------- Win count-up ----------
-  const runCountUp = useCallback((finalWin: number, tier: LuxTier, onDone?: () => void) => {
+  const runCountUp = useCallback((finalWin: number, tier: WinTier, onDone?: () => void) => {
     if (finalWin <= 0) { onDone?.(); return; }
     if (reduceMotion) { setDisplayWinAmount(finalWin); onDone?.(); return; }
-    const steps = tier === 'epic' ? 55 : tier === 'mega' ? 44 : tier === 'big' ? 32 : 20;
-    const stepMs = tier === 'epic' ? 30 : tier === 'mega' ? 28 : 26;
+    const steps = tier === 'jackpot' ? 55 : tier === 'mega' ? 44 : tier === 'big' ? 32 : 20;
+    const stepMs = tier === 'jackpot' ? 30 : tier === 'mega' ? 28 : 26;
     let step = 0;
     const tickUp = () => {
       step++;
@@ -404,9 +394,9 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
         haptics.jackpot();
         later(() => setRetriggerFlash(false), reduceMotion ? 350 : 1100);
       }
-      const tier = classifyWinTier(r.totalWin, bonusTotalBet);
+      const tier = classifyWinTier(r.totalWin, bonusTotalBet, 'luxury');
       setWinTier(tier);
-      if (tier) { audio.win(audioTierFor(tier)); haptics.win(); }
+      if (tier) { audio.win(tier); haptics.win(); }
 
       runCountUp(r.totalWin, tier ?? 'small', () => {
         // Diamond collection animation, then advance.
@@ -445,11 +435,11 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
       resolveJackpots(bonusTotalBet, () => {
         if (st.phase === 'bonusOutro') {
           // Bonus session total also drives the win-tier celebration.
-          const sessionTier = classifyWinTier(st.bonusWin, bonusTotalBet);
+          const sessionTier = classifyWinTier(st.bonusWin, bonusTotalBet, 'luxury');
           later(() => {
             setBonusBanner('outro');
             setBonusBannerPending('outro');
-            if (sessionTier) { setWinTier(sessionTier); audio.win(audioTierFor(sessionTier)); }
+            if (sessionTier) { setWinTier(sessionTier); audio.win(sessionTier); }
             audio.bonusOutro();
             haptics.jackpot();
           }, 500);
@@ -550,11 +540,11 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
       setActiveWinLines(r.winningLines.map((w) => w.line));
       setWinCells(winningCellKeys(r));
 
-      const tier = classifyWinTier(r.totalWin, state.totalBetCents);
+      const tier = classifyWinTier(r.totalWin, state.totalBetCents, 'luxury');
       setWinTier(tier);
       if (tier) {
-        audio.win(audioTierFor(tier));
-        if (tier === 'epic' || tier === 'mega') haptics.jackpot();
+        audio.win(tier);
+        if (tier === 'jackpot' || tier === 'mega') haptics.jackpot();
         else haptics.win();
       }
       runCountUp(r.totalWin, tier ?? 'small', () => {
@@ -565,7 +555,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
             setState(engineRef.current.getState());
           } else if (
             autoSpinEnabled &&
-            (tier === 'big' || tier === 'mega' || tier === 'epic')
+            (tier === 'big' || tier === 'mega' || tier === 'jackpot')
           ) {
             // Pause the run on a BIG win or greater — the player must RESUME.
             setAutoSpinPaused(true);
@@ -595,8 +585,8 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
       !bonusBanner &&
       !jackpotWin &&
       !retriggerFlash &&
-      state.phase === 'base' &&
-      state.credits >= state.totalBetCents
+      state.phase === 'base'
+      // BETA: credit check removed — overdraft allowed during testing.
     ) {
       autoSpinRef.current = setTimeout(() => {
         setAutoSpinCount((c) => c - 1);
@@ -609,7 +599,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   }, [
     autoSpinEnabled, autoSpinPaused, autoSpinCount, isSpinning, presenting,
     inBonus, inputLocked, modal, bonusBanner, jackpotWin, retriggerFlash,
-    state.phase, state.credits, state.totalBetCents, reduceMotion, handleSpin,
+    state.phase, reduceMotion, handleSpin,
   ]);
 
   // End the run when its count is exhausted, or — once back in the base game —
@@ -619,9 +609,8 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   useEffect(() => {
     if (!autoSpinEnabled) return;
     const exhausted = autoSpinCount <= 0;
-    const brokeInBase =
-      state.phase === 'base' && state.credits < state.totalBetCents;
-    if (exhausted || brokeInBase) {
+    // BETA: brokeInBase check removed — overdraft allowed during testing.
+    if (exhausted) {
       setAutoSpinEnabled(false);
       setAutoSpinCount(0);
       setAutoSpinPaused(false);
@@ -725,7 +714,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
 
   // ---------- Derived ----------
   const multiplier = state.bonusMultiplier;
-  const canSpin = !isSpinning && !inBonus && !inputLocked && state.credits >= state.totalBetCents;
+  const canSpin = !isSpinning && !inBonus && !inputLocked; // BETA: credit check removed
   const diamondSlots = 10;
 
   // ---------- Render ----------
@@ -972,7 +961,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                 </div>
                 <div className="lux-readout-pill led-frame" aria-live="polite">
                   <span className="readout-label">{inBonus ? 'BONUS WIN' : 'LAST WIN'}</span>
-                  <span className={`led-value led-amber-sm${winTier ? ` tier-${winTier === 'epic' ? 'jackpot' : winTier}` : ''}`}>
+                  <span className={`led-value led-amber-sm${winTier ? ` tier-${winTier}` : ''}`}>
                     {formatCents(displayWinAmount)}
                   </span>
                 </div>
@@ -1055,7 +1044,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                 <button
                   className={`autospin-button${autoSpinEnabled ? ' active' : ''}${autoSpinEnabled && autoSpinPaused ? ' autospin-paused' : ''}`}
                   onClick={handleAutoSpinClick}
-                  disabled={inBonus || inputLocked || state.credits < state.totalBetCents}
+                  disabled={inBonus || inputLocked} // BETA: credit check removed
                   aria-label={
                     autoSpinEnabled && autoSpinPaused
                       ? `Resume auto-spin (${autoSpinCount} left)`
@@ -1084,8 +1073,8 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
 
               {/* Win badge */}
               {winTier && (
-                <div className={`win-badge lux-win-badge badge-${winTier === 'epic' ? 'jackpot' : winTier}`} role="status">
-                  {winTier === 'epic' && '★ EPIC WIN ★'}
+                <div className={`win-badge lux-win-badge badge-${winTier}`} role="status">
+                  {winTier === 'jackpot' && '★ EPIC WIN ★'}
                   {winTier === 'mega' && '★ MEGA WIN ★'}
                   {winTier === 'big' && 'BIG WIN'}
                   {(winTier === 'win' || winTier === 'small') && 'WIN'}
@@ -1195,12 +1184,12 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
       )}
 
       {/* Celebration overlay (big / mega / epic) */}
-      {winTier && (winTier === 'big' || winTier === 'mega' || winTier === 'epic') && (
-        <div className={`celebration-overlay celebration-${winTier === 'epic' ? 'jackpot' : winTier}`} aria-hidden="true">
+      {winTier && (winTier === 'big' || winTier === 'mega' || winTier === 'jackpot') && (
+        <div className={`celebration-overlay celebration-${winTier}`} aria-hidden="true">
           <div className="celebration-glow" />
           {!reduceMotion && (
             <div className="celebration-particles">
-              {Array.from({ length: winTier === 'epic' ? 24 : winTier === 'mega' ? 16 : 8 }).map((_, i) => (
+              {Array.from({ length: winTier === 'jackpot' ? 24 : winTier === 'mega' ? 16 : 8 }).map((_, i) => (
                 <span
                   key={i}
                   className="particle"
@@ -1240,7 +1229,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                     SYMBOL PAYS
                     <span className="paytable-col-sub">× bet per line · top→bottom from row 1</span>
                   </h3>
-                  {(['JET','YACHT','CAR','MONEY','RING','WATCH','GOLD_BARS','SILVER_BARS','GOLD_BAR'] as SymbolId[]).map((id) => (
+                  {(['JET','YACHT','CAR','MONEY','RING','WATCH','GOLD_BARS','SILVER_BARS','GOLD_BAR','BOW_TIE','SUNGLASSES','PERFUME'] as SymbolId[]).map((id) => (
                     <div className="pay-row" key={id}>
                       <div className="pay-icon">{getLuxurySymbolSVG(id)}</div>
                       <span className="symbol-name">{SYMBOL_LABELS[id]}</span>
@@ -1328,14 +1317,6 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
               <section className="info-section">
                 <h3>Session</h3>
                 <dl className="info-dl"><dt>Elapsed</dt><dd>{formatDuration(sessionMs)}</dd></dl>
-              </section>
-              <section className="info-section rg-section">
-                <h3>Play Responsibly</h3>
-                <p>Set a budget. Take regular breaks. Gambling should be entertainment, not a way to make money.</p>
-                <p className="rg-resources">
-                  <strong>U.S.:</strong> 1-800-GAMBLER ·{' '}
-                  <a href="https://www.ncpgambling.org" target="_blank" rel="noopener noreferrer">ncpgambling.org</a>
-                </p>
               </section>
             </div>
           </div>
