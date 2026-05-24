@@ -89,33 +89,18 @@ export class MockJackpotService implements JackpotService {
     lastWonTier: null,
   };
   private subs = new Set<(m: MetersSnapshot) => void>();
-  private driftTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor() {
-    // Simulate other players globally contributing so the meters visibly
-    // tick even when this device is idle. Mock-only; a real backend's
-    // subscribe() would deliver genuine cross-player updates instead.
-    if (typeof setInterval === 'function') {
-      this.driftTimer = setInterval(() => {
-        this.meters = {
-          ...this.meters,
-          fever1: round2(this.meters.fever1 + 0.01 + Math.random() * 0.05),
-          fever2: round2(this.meters.fever2 + 0.005 + Math.random() * 0.03),
-          fever3: round2(this.meters.fever3 + 0.003 + Math.random() * 0.02),
-          lastUpdated: Date.now(),
-          lastWonTier: null,
-        };
-        this.emit();
-      }, 4000);
-    }
-  }
+  // No-op constructor. The previous build ran a setInterval that used
+  // Math.random to "drift" the meters every 4s to simulate other players
+  // contributing — purely visual. Removed once FEVER was retired from the
+  // Diamond UI (the meters aren't rendered anywhere), and removed from
+  // here too to keep Math.random off any code path that touches what
+  // looks like outcome state. (Class III: no client-side randomness in
+  // outcome-bearing data — see docs/rng-architecture.md.)
+  constructor() { /* intentionally empty */ }
 
-  /** Stop the simulated-drift timer (call on game unmount). */
+  /** Tear down (called on game unmount). */
   dispose(): void {
-    if (this.driftTimer) {
-      clearInterval(this.driftTimer);
-      this.driftTimer = null;
-    }
     this.subs.clear();
   }
 

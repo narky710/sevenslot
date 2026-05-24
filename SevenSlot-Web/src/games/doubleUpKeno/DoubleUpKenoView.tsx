@@ -99,10 +99,13 @@ export default function DoubleUpKenoView({ onExit, initialBalanceCents, freePlay
     sync();
   };
 
-  const handleQuickPick = () => {
+  const handleQuickPick = async () => {
+    if (busy) return;
     const count = state.picks.length >= MIN_SPOTS ? state.picks.length : 10;
-    engineRef.current.quickPick(count);
-    sync();
+    setBusy(true); setError(null);
+    try { await engineRef.current.quickPick(count); sync(); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(false); }
   };
 
   const handleWipe = () => { engineRef.current.wipeCard(); sync(); };

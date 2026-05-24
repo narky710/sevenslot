@@ -9,8 +9,9 @@ const SYMBOL_NAMES = [
   'Cherry','Apple','Watermelon','Orange','Plum','Lemon',
 ]
 
-const REEL_WEIGHTS = [2,2,2,1,3,4,5,3,8,7,8,9,9,10]
-const TOTAL_WEIGHT = 73
+// Reel weights are owned by the server's _t7_pick_symbol helper (Class III:
+// all randomness CSPRNG-backed). Kept here only as documentation.
+// const REEL_WEIGHTS = [2,2,2,1,3,4,5,3,8,7,8,9,9,10]   // sum = 73
 
 const PAYLINES: ReadonlyArray<readonly [number, number, number]> = [
   [3,4,5],[0,1,2],[6,7,8],[0,4,8],[6,4,2],[0,3,6],[1,4,7],[2,5,8],
@@ -47,15 +48,35 @@ export class Triple7ServerAdapter {
 
   setBalance(cents: number): void { this.credits = cents }
 
+  /**
+   * Synchronous initial-grid stub. Intentionally returns a fixed value
+   * (index 0 = "Red 7") so the view has SOMETHING to render before
+   * fetchInitialGrid() resolves. ALL randomness — including the load-time
+   * grid — must come from the server's CSPRNG. The view immediately
+   * overwrites this with the server response.
+   */
   pickRandomSymbolIndex(): number {
-    const r = Math.floor(Math.random() * TOTAL_WEIGHT)
-    let cum = 0
-    for (let i = 0; i < REEL_WEIGHTS.length; i++) {
-      cum += REEL_WEIGHTS[i]
-      if (r < cum) return i
-    }
-    return REEL_WEIGHTS.length - 1
+    return 0
   }
+
+  /**
+   * Server-authoritative initial reel positions. Calls `triple7_preview_grid`
+   * which uses the same `_t7_pick_symbol` (CSPRNG-backed) helper that real
+   * spins use — no bet debit, no session writes, no event log. Returns null
+   * on any failure so the caller can keep its local fallback in place.
+   */
+  async fetchInitialGrid(): Promise<number[] | null> {
+    try {
+      const { data, error } = await supabase.rpc('triple7_preview_grid')
+      if (error) throw error
+      const row = data?.[0]
+      if (!row) return null
+      return (row.grid as number[]).slice(0, 9)
+    } catch {
+      return null
+    }
+  }
+
 
   getSymbolNames(): string[] { return SYMBOL_NAMES }
   getPaylines(): ReadonlyArray<readonly [number, number, number]> { return PAYLINES }

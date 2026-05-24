@@ -314,6 +314,14 @@ export type Database = {
           was_replay: boolean
         }[]
       }
+      triple7_preview_grid: {
+        Args: Record<string, never>
+        Returns: { grid: number[] }[]
+      }
+      keno_quick_pick: {
+        Args: { p_count: number }
+        Returns: { picks: number[] }[]
+      }
       set_player_limits: {
         Args: {
           p_daily_loss_limit_cents?: number

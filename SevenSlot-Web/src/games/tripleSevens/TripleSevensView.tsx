@@ -127,13 +127,27 @@ export default function TripleSevensView({ onExit, initialBalanceCents = 0, free
     setAutoSpinning(autoSpinEnabled);
     return () => { setAutoSpinning(false); };
   }, [autoSpinEnabled]);
-  // Initial reel state is randomized so the player doesn't see a uniform
-  // wall of Red 7s on load. Uses the engine's weighted reel strip — same
-  // distribution as a real spin — so the load looks representative of
-  // typical gameplay.
+  // Initial grid uses a fixed-value fallback (all Red 7s) so the view has
+  // SOMETHING to render before fetchInitialGrid() resolves. Class III: all
+  // randomness — including the load-time grid — must come from the server's
+  // CSPRNG via triple7_preview_grid (same _t7_pick_symbol helper a real
+  // spin uses). The useEffect below overwrites this immediately.
   const [displayPositions, setDisplayPositions] = useState<number[]>(() =>
     Array.from({ length: 9 }, () => engineRef.current.pickRandomSymbolIndex())
   );
+
+  // Server-authoritative initial reel positions. Fires once on mount;
+  // silently keeps the local fallback if the RPC fails.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await engineRef.current.fetchInitialGrid();
+      if (cancelled || !res) return;
+      setDisplayPositions(res);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [stoppedReels, setStoppedReels] = useState<boolean[]>([false, false, false]);
   const [winningLines, setWinningLines] = useState<number[]>([]);
   const [displayWinAmount, setDisplayWinAmount] = useState(0);

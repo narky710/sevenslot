@@ -70,12 +70,21 @@ export class KenoServerAdapter {
     this.state.picks = []
   }
 
-  quickPick(count: number): void {
-    if (this.state.phase !== 'idle') return
+  /**
+   * Server-authoritative quick-pick. Calls `keno_quick_pick` which uses the
+   * same `_csprng_uint` helper outcomes use — keeps all randomness on the
+   * server for clean Class III posture. Throws on RPC failure so the caller
+   * can surface an error rather than silently using a stale picks array.
+   */
+  async quickPick(count: number): Promise<boolean> {
+    if (this.state.phase !== 'idle') return false
     const want = Math.max(MIN_SPOTS, Math.min(MAX_SPOTS, Math.floor(count)))
-    const all = new Set<number>()
-    while (all.size < want) all.add(1 + Math.floor(Math.random() * NUM_BALLS))
-    this.state.picks = [...all].sort((a, b) => a - b)
+    const { data, error } = await supabase.rpc('keno_quick_pick', { p_count: want })
+    if (error) throw error
+    const row = data?.[0]
+    if (!row) throw new Error('keno_quick_pick returned no row')
+    this.state.picks = [...(row.picks as number[])].sort((a, b) => a - b)
+    return true
   }
 
   setBet(amountCents: number): void {
