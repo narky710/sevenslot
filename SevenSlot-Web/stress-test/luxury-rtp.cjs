@@ -2,7 +2,7 @@
  * Diamond Riches RTP Monte-Carlo (spec §13.3).
  *
  * Drives the build mirror's exact production math: each spin wagers the total
- * bet, spins BASE_REELS, evaluates; 3+ scatters runs the 10-spin free bonus
+ * bet, spins BASE_REELS, evaluates; 3+ scatters runs the free-spin bonus
  * (no extra wager) with the collectible multiplier. RTP = returned / wagered.
  * Per-player deterministic MT seeding mirrors harness.cjs. Writes a markdown
  * report next to the other stress-test reports.
@@ -12,15 +12,15 @@
 
 const fs = require('fs');
 const path = require('path');
-const E = require('./build/LuxuryEngine');
+const { LuxuryEngine } = require('./build/LuxuryEngine');
 const { MersenneTwister } = require('./build/MersenneTwister');
 
 const TARGET_RTP = 0.95;
 const LINE_BET = 25;            // cents/line (representative mid bet)
-const TOTAL_BET = LINE_BET * E.NUM_PAYLINES; // 375¢
 
 function runPlayer(seed, spins) {
-  const rng = new MersenneTwister(seed);
+  const engine = new LuxuryEngine(999999, seed); // abundant credits, deterministic seed
+
   let wagered = 0;
   let returned = 0;
   let hits = 0;
@@ -32,31 +32,48 @@ function runPlayer(seed, spins) {
   let mean = 0, m2 = 0, n = 0;
   let curLoss = 0, maxLoss = 0;
 
-  for (let i = 0; i < spins; i++) {
-    wagered += TOTAL_BET;
-    const { grid } = E.spinReels(rng, E.BASE_REELS);
-    const ev = E.evaluateGrid(grid, LINE_BET, TOTAL_BET);
-    let win = ev.baseWin;
-    if (ev.triggerBonus) {
-      bonusTriggers++;
-      const { bonusWin } = E.runBonus(rng, LINE_BET, TOTAL_BET);
-      win += bonusWin;
-      bonusReturn += bonusWin;
-    }
-    returned += win;
-    if (win > 0) { hits++; curLoss = 0; if (win > biggestWin) biggestWin = win; }
-    else { curLoss++; if (curLoss > maxLoss) maxLoss = curLoss; }
+  // Set up betting: LINE_BET cents per line, all 20 lines
+  engine.setLineBet(LINE_BET);
+  engine.setLineCount(20);
+  const TOTAL_BET = LINE_BET * 20;
 
-    n++;
-    const d = win - mean;
-    mean += d / n;
-    m2 += d * (win - mean);
+  for (let i = 0; i < spins; i++) {
+    wagered += TOTAL_BET; // Only base game spins are wagered
+
+    // Main spin (costs TOTAL_BET)
+    const spinResult = engine.spin();
+    if (!spinResult) continue;
+    let baseWin = spinResult.totalWin;
+    returned += baseWin;
+
+    if (spinResult.triggerBonus) {
+      bonusTriggers++;
+      let bonusWinTotal = 0;
+
+      // Run all bonus spins until completion (no wager on these)
+      engine.beginBonusSpins();
+      while (engine.state.freeSpinsRemaining > 0) {
+        const bonusResult = engine.bonusSpin();
+        if (!bonusResult) break;
+        bonusWinTotal += bonusResult.totalWin;
+      }
+      engine.endBonus();
+      returned += bonusWinTotal;
+      bonusReturn += bonusWinTotal;
+
+      if (bonusWinTotal > 0 && bonusWinTotal > (biggestWin - baseWin)) biggestWin = baseWin + bonusWinTotal;
+    } else {
+      if (baseWin > 0 && baseWin > biggestWin) biggestWin = baseWin;
+    }
+
+    // Track losing spins (before bonus wins)
+    if (baseWin > 0) { hits++; curLoss = 0; }
+    else { curLoss++; if (curLoss > maxLoss) maxLoss = curLoss; }
   }
 
-  const variance = n > 1 ? m2 / (n - 1) : 0;
   return {
     seed, spins, wagered, returned, hits, bonusTriggers, bonusReturn,
-    biggestWin, variance, stdDev: Math.sqrt(variance), maxLoss,
+    biggestWin, maxLoss,
     rtp: returned / wagered,
   };
 }
@@ -96,11 +113,17 @@ const SCENARIOS = [
   { spins: 100_000, players: 1 },
   { spins: 1_000_000, players: 1 },
   { spins: 1_000_000, players: 5 },
+  { spins: 1_000_000, players: 10 },
   { spins: HEADLINE, players: 1 },
+  { spins: HEADLINE, players: 5 },
+  { spins: HEADLINE, players: 10 },
 ];
 
+const NUM_PAYLINES = 20;
+const TOTAL_BET = LINE_BET * NUM_PAYLINES;
+
 console.log(`Diamond Riches RTP — target ${(TARGET_RTP * 100).toFixed(1)}%`);
-console.log(`Bet: ${LINE_BET}¢/line × ${E.NUM_PAYLINES} = ${TOTAL_BET}¢/spin`);
+console.log(`Bet: ${LINE_BET}¢/line × ${NUM_PAYLINES} = ${TOTAL_BET}¢/spin`);
 const t0 = Date.now();
 const results = [];
 for (const s of SCENARIOS) {
@@ -130,7 +153,7 @@ L.push('# Diamond Riches — RTP Stress-Test Report');
 L.push('');
 L.push(`**Generated:** ${new Date().toISOString()}`);
 L.push(`**Engine:** \`src/engine/LuxuryEngine.ts\` (MT19937, 5×3, 15 lines, reel-strip math)`);
-L.push(`**Bet:** ${LINE_BET}¢/line × ${E.NUM_PAYLINES} lines = ${money(TOTAL_BET)}/spin`);
+L.push(`**Bet:** ${LINE_BET}¢/line × ${NUM_PAYLINES} lines = ${money(TOTAL_BET)}/spin`);
 L.push(`**Target RTP:** ${(TARGET_RTP * 100).toFixed(1)}% (accept band 94–96%)`);
 L.push('');
 L.push('| Spins | Players | RTP | Hit freq | Bonus freq | Bonus % of return | Biggest win | Max losing streak |');

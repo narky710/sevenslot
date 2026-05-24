@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  LuxuryEngine,
   LuxuryState,
   SpinResult,
   PAYLINES,
@@ -9,10 +8,13 @@ import {
   NUM_REELS,
   NUM_ROWS,
   NUM_PAYLINES,
+  MAX_SELECTABLE_LINES,
   FREE_SPINS_AWARDED,
+  BONUS_BASE_MULTIPLIER,
   MAX_BONUS_MULTIPLIER,
   type SymbolId,
 } from '../../engine/LuxuryEngine';
+import { DiamondRichesServerAdapter } from './DiamondRichesServerAdapter';
 import {
   createJackpotService,
   JACKPOT_CONFIG,
@@ -25,9 +27,19 @@ import {
 import { getLuxurySymbolSVG, SYMBOL_LABELS, LuxurySymbolDefs } from '../../symbols/LuxurySymbols';
 import { audio as rawAudio } from '../../audio';
 import { classifyWinTier, type WinTier } from '../../utils/winTier';
-import { loadCredits, saveCredits } from '../../utils/creditStorage';
 import { haptics as rawHaptics } from '../../haptics';
 import '../../styles/index.css';
+import { setAutoSpinning } from '../../idle/IdleSignal';
+
+function errorMessage(e: unknown): string {
+  if (typeof e === 'string') return e;
+  if (e && typeof e === 'object') {
+    const o = e as Record<string, unknown>;
+    if (typeof o.message === 'string' && o.message) return o.message;
+    try { return JSON.stringify(e); } catch { /* fall through */ }
+  }
+  return String(e);
+}
 
 /**
  * Safe wrappers — audio/haptics are pure enhancement and must never break the
@@ -97,18 +109,44 @@ const prefersReducedMotion = () =>
   window.matchMedia &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Source-faithful Pot-O-Gold symbol pool only. Legacy BOW_TIE / SUNGLASSES /
+// PERFUME were leaking into the reel-spin animation; the server strips never
+// emit those indices, but the in-flight tumble pool was still drawing from
+// them, which is what produced the bow-tie / sunglasses art mid-spin.
 const TUMBLE_POOL: SymbolId[] = [
-  'JET', 'YACHT', 'CAR', 'MONEY', 'RING', 'WATCH', 'GOLD_BARS', 'SILVER_BARS', 'GOLD_BAR',
-  'BOW_TIE', 'SUNGLASSES', 'PERFUME',
+  'YACHT', 'MOTORBOAT', 'SPORTS_CAR', 'RING', 'CASH_WADS', 'WHEEL', 'GOLD_BARS', 'WHITE_CARD', 'GOLD_SMALL',
 ];
+
+const spinErrorStyle: React.CSSProperties = {
+  margin: '6px 12px',
+  padding: '8px 12px',
+  background: 'rgba(58, 18, 18, 0.92)',
+  border: '1px solid #ff5252',
+  borderRadius: 6,
+  color: '#ffb3b3',
+  fontSize: 12,
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  cursor: 'pointer',
+  textAlign: 'center',
+};
 
 interface Props {
   onExit?: () => void;
+  initialBalanceCents?: number;
+  freePlayCents?: number;
+  onBalanceChange?: (cents: number) => void;
 }
 
-export default function DiamondRichesView({ onExit }: Props = {}) {
-  const engineRef = useRef(new LuxuryEngine(loadCredits()));
+export default function DiamondRichesView({
+  onExit,
+  initialBalanceCents = 0,
+  freePlayCents = 0,
+  onBalanceChange,
+}: Props = {}) {
+  const engineRef = useRef(new DiamondRichesServerAdapter(initialBalanceCents));
+  useEffect(() => { engineRef.current.setBalance(initialBalanceCents); }, [initialBalanceCents]);
   const jackpotRef = useRef<JackpotService>(createJackpotService());
+  const [spinError, setSpinError] = useState<string | null>(null);
 
   const [state, setState] = useState<LuxuryState>(engineRef.current.getState());
   const [meters, setMeters] = useState<MetersSnapshot | null>(null);
@@ -121,6 +159,14 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   // Auto-spin pauses (keeps its remaining count) on a BIG/MEGA/EPIC win and
   // waits for the player to RESUME — it does not silently roll past a big win.
   const [autoSpinPaused, setAutoSpinPaused] = useState(false);
+
+  // Notify the global IdleSignal so the 15-min auto-signout timer in
+  // Authenticated suspends while auto-spin is genuinely running (enabled and
+  // not big-win-paused). On unmount, clear the flag.
+  useEffect(() => {
+    setAutoSpinning(autoSpinEnabled && !autoSpinPaused);
+    return () => { setAutoSpinning(false); };
+  }, [autoSpinEnabled, autoSpinPaused]);
   // True from a base spin's start until its win presentation + jackpot +
   // pause decision fully resolve. The auto-spin scheduler waits on this so it
   // never starts the next spin before the big-win pause is applied.
@@ -128,6 +174,22 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   const [displayGrid, setDisplayGrid] = useState<SymbolId[][]>(
     () => engineRef.current.pickRandomDisplayGrid().grid
   );
+
+  // Server-authoritative initial reel positions. The client-side fallback
+  // above renders immediately so the player doesn't see blanks; this effect
+  // overwrites it with a CSPRNG-rolled grid from the server's
+  // diamond_preview_grid RPC (same _luxury_spin_reels helper a real spin uses).
+  // Fires only once on mount; silently keeps the fallback if the RPC fails.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await engineRef.current.fetchInitialGrid();
+      if (cancelled || !res) return;
+      setDisplayGrid(res.grid);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [stoppedReels, setStoppedReels] = useState<boolean[]>(
     () => Array(NUM_REELS).fill(true)
   );
@@ -149,8 +211,8 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   const [sessionStart] = useState(() => Date.now());
   const [sessionMs, setSessionMs] = useState(0);
 
-  // Persist credits whenever the balance changes.
-  useEffect(() => { saveCredits(state.credits); }, [state.credits]);
+  // Server is authoritative for credits; bubble up so the wallet hook refreshes.
+  useEffect(() => { onBalanceChange?.(state.credits); }, [state.credits, onBalanceChange]);
 
   const reelStopTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Mutable snapshot so the tumble interval reads the latest stopped flags
@@ -222,31 +284,22 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
    * normal win presentation (base game and bonus alike, revised spec §4).
    */
   const resolveJackpots = useCallback(
-    (totalBetCents: number, done: () => void) => {
-      let tiers: JackpotTier[] = [];
-      try {
-        tiers = engineRef.current.rollJackpotTriggers(totalBetCents, JACKPOT_BASE_ODDS);
-      } catch {
-        tiers = [];
-      }
-      if (tiers.length === 0) { done(); return; }
-      const tier = tiers[0]; // >1 in a single spin is astronomically rare
+    (_totalBetCents: number, done: () => void) => {
+      // Server is authoritative: play_diamond already credited the jackpot
+      // into the wallet and the spin response. We just need to surface it
+      // for the celebration animation. consumePendingJackpot() returns the
+      // tier + cent amount captured from the most recent RPC response.
+      const pj = engineRef.current.consumePendingJackpot();
+      if (!pj) { done(); return; }
       setInputLocked(true);
-      jackpotRef.current
-        .claim(tier)
-        .then(({ amount }) => {
-          engineRef.current.addJackpotWin(amount);
-          setState(engineRef.current.getState());
-          setJackpotWin({ tier, amount });
-          audio.win('jackpot');
-          haptics.jackpot();
-          later(() => {
-            setJackpotWin(null);
-            setInputLocked(false);
-            done();
-          }, reduceMotion ? 700 : 8500);
-        })
-        .catch(() => { setInputLocked(false); done(); });
+      setJackpotWin(pj);
+      audio.win('jackpot');
+      haptics.jackpot();
+      later(() => {
+        setJackpotWin(null);
+        setInputLocked(false);
+        done();
+      }, reduceMotion ? 700 : 8500);
     },
     [reduceMotion]
   );
@@ -366,8 +419,10 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
   }, []);
 
   // ---------- Bonus flow ----------
-  const runBonusSpin = useCallback(() => {
-    const result = engineRef.current.bonusSpin();
+  const runBonusSpin = useCallback(async () => {
+    let result: SpinResult | null;
+    try { result = await engineRef.current.bonusSpin(); }
+    catch (e) { setSpinError(errorMessage(e)); return; }
     if (!result) return;
     setIsSpinning(true);
     setActiveWinLines([]);
@@ -485,16 +540,14 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
     }
   }, [bonusBannerPending, runBonusSpin, reduceMotion]);
 
-  // Auto-proceed countdown. Manual play gives a long grace period (intro 2 min,
-  // outro 60 s). During an auto-spin run the player has stepped away, so keep
-  // things moving: intro 15 s, outro 30 s. Tapping clears bonusBannerPending,
-  // which tears this down.
+  // Auto-proceed countdown for the bonus intro/outro banners. Hitting the
+  // bonus is the headline moment of the game; we do NOT compress these
+  // timings during auto-spin — the player gets the full grace period either
+  // way (intro 2 min, outro 60 s). Tapping clears bonusBannerPending, which
+  // tears this down so a player who's actively watching can advance early.
   useEffect(() => {
     if (!bonusBannerPending) { setBannerSecs(null); return; }
-    let remaining =
-      bonusBannerPending === 'intro'
-        ? (autoSpinEnabled ? 15 : 120)
-        : (autoSpinEnabled ? 30 : 60);
+    let remaining = bonusBannerPending === 'intro' ? 120 : 60;
     setBannerSecs(remaining);
     const id = setInterval(() => {
       remaining -= 1;
@@ -507,13 +560,16 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [bonusBannerPending, autoSpinEnabled, handleBannerTap]);
+  }, [bonusBannerPending, handleBannerTap]);
 
   // ---------- Base spin ----------
-  const handleSpin = useCallback(() => {
+  const handleSpin = useCallback(async () => {
     if (isSpinning || inBonus || inputLocked) return;
     const totalBet = state.totalBetCents;
-    const result = engineRef.current.spin();
+    setSpinError(null);
+    let result: SpinResult | null;
+    try { result = await engineRef.current.spin(); }
+    catch (e) { setSpinError(errorMessage(e)); return; }
     if (!result) return;
 
     audio.unlock();
@@ -550,9 +606,16 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
       runCountUp(r.totalWin, tier ?? 'small', () => {
         resolveJackpots(totalBet, () => {
           if (r.triggerBonus) {
-            // Engine has already moved to 'bonusIntro'; reflect it so the
-            // bonus-intro effect fires.
+            // Adapter sets phase='bonusIntro' on bonus_triggered; refresh
+            // React state so the bonus-intro effect (line ~510) sees the
+            // new phase and fires the intro banner.
             setState(engineRef.current.getState());
+            // Hitting the bonus is the game's headline moment. Pause any
+            // active auto-spin so the player consciously experiences the
+            // intro banner, the free-spin session, and the outro — and so
+            // the run doesn't silently roll into the next base spin the
+            // instant the outro dismisses. Player taps RESUME to continue.
+            if (autoSpinEnabled) setAutoSpinPaused(true);
           } else if (
             autoSpinEnabled &&
             (tier === 'big' || tier === 'mega' || tier === 'jackpot')
@@ -660,7 +723,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
     audio.click();
     haptics.light();
     // MAX = all lines at the top per-line bet.
-    engineRef.current.setLineCount(NUM_PAYLINES);
+    engineRef.current.setLineCount(MAX_SELECTABLE_LINES);
     engineRef.current.setLineBet(LINE_BET_STEPS_CENTS[LINE_BET_STEPS_CENTS.length - 1]);
     setState(engineRef.current.getState());
     flashLinePreview();
@@ -771,21 +834,11 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
               </div>
             </div>
 
-            {/* Progressive jackpot meters (shared across all players) */}
-            <div className="lux-jp-strip" role="status" aria-label="Progressive jackpots">
-              {JACKPOT_TIERS.map((tier) => {
-                const val = meters ? meters[tier] : JACKPOT_CONFIG[tier].seedValue;
-                const justWon = meters?.lastWonTier === tier;
-                return (
-                  <div key={tier} className={`lux-jp lux-jp-${tier} ${justWon ? 'lux-jp-hit' : ''}`}>
-                    <span className="lux-jp-label">{JACKPOT_CONFIG[tier].label}</span>
-                    <span className="lux-jp-value">
-                      {justWon ? 'JACKPOT HIT!' : formatDollars(val)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            {/* Progressive jackpot meter strip removed — server no longer
+                rolls FEVER 1/2/3 inside play_diamond. The win-celebration
+                pipeline still consumes `meters` for retained-celebration
+                animations, so we keep the `meters` state but render nothing
+                here. */}
 
             {/* Marquee */}
             <header className="marquee lux-marquee">
@@ -794,6 +847,16 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                 <div className="lux-bonus-subtitle">BONUS REELS IN PLAY</div>
               )}
             </header>
+
+            {spinError && (
+              <div
+                role="alert"
+                onClick={() => setSpinError(null)}
+                style={spinErrorStyle}
+              >
+                {spinError} <span style={{ opacity: 0.6, marginLeft: 8 }}>(tap to dismiss)</span>
+              </div>
+            )}
 
             {/* Bonus status bar (free spins only) */}
             {inBonus && (
@@ -951,7 +1014,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
               <div className="lux-readout-row">
                 <div className="lux-readout-pill led-frame">
                   <span className="readout-label">CREDIT</span>
-                  <span className="led-value led-amber-sm">{formatCents(state.credits)}</span>
+                  <span className="led-value led-amber-sm">{formatCents(state.credits + freePlayCents)}</span>
                 </div>
                 <div className="lux-readout-pill led-frame">
                   <span className="readout-label">{inBonus ? 'MULT' : 'TOTAL BET'}</span>
@@ -971,12 +1034,12 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
               <div
                 className={`lux-line-pips${linePreview ? ' is-active' : ''}`}
                 role="img"
-                aria-label={`${state.lineCount} of ${NUM_PAYLINES} paylines active`}
+                aria-label={`${state.lineCount} of ${MAX_SELECTABLE_LINES} paylines active`}
               >
-                {Array.from({ length: NUM_PAYLINES }).map((_, i) => (
+                {Array.from({ length: MAX_SELECTABLE_LINES }).map((_, i) => (
                   <span key={i} className={`lux-pip${i < state.lineCount ? ' on' : ''}`} />
                 ))}
-                <span className="lux-pip-count">{state.lineCount}/{NUM_PAYLINES}</span>
+                <span className="lux-pip-count">{state.lineCount}/{MAX_SELECTABLE_LINES}</span>
               </div>
 
               {/* Row 2: Bet steppers + MAX */}
@@ -996,7 +1059,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                     <button
                       className="bet-step-button lux-step-sm"
                       onClick={() => stepLines(1)}
-                      disabled={isSpinning || inBonus || state.lineCount >= NUM_PAYLINES}
+                      disabled={isSpinning || inBonus || state.lineCount >= MAX_SELECTABLE_LINES}
                       aria-label="More lines"
                     >+</button>
                   </div>
@@ -1022,7 +1085,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                   </div>
                 </div>
                 <button
-                  className={`max-bet-button lux-max-btn${state.lineCount === NUM_PAYLINES && state.lineBetCents === LINE_BET_STEPS_CENTS[LINE_BET_STEPS_CENTS.length - 1] ? ' active' : ''}`}
+                  className={`max-bet-button lux-max-btn${state.lineCount === MAX_SELECTABLE_LINES && state.lineBetCents === LINE_BET_STEPS_CENTS[LINE_BET_STEPS_CENTS.length - 1] ? ' active' : ''}`}
                   onClick={handleMaxBet}
                   disabled={isSpinning || inBonus}
                   aria-label="Max bet"
@@ -1227,9 +1290,9 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                 <div className="paytable-col">
                   <h3 className="paytable-col-header">
                     SYMBOL PAYS
-                    <span className="paytable-col-sub">× bet per line · top→bottom from row 1</span>
+                    <span className="paytable-col-sub">× bet per line · left → right from reel 1</span>
                   </h3>
-                  {(['JET','YACHT','CAR','MONEY','RING','WATCH','GOLD_BARS','SILVER_BARS','GOLD_BAR','BOW_TIE','SUNGLASSES','PERFUME'] as SymbolId[]).map((id) => (
+                  {(['YACHT','MOTORBOAT','SPORTS_CAR','RING','CASH_WADS','WHEEL','GOLD_BARS','WHITE_CARD','GOLD_SMALL'] as SymbolId[]).map((id) => (
                     <div className="pay-row" key={id}>
                       <div className="pay-icon">{getLuxurySymbolSVG(id)}</div>
                       <span className="symbol-name">{SYMBOL_LABELS[id]}</span>
@@ -1247,18 +1310,19 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                   </h3>
                   <div className="pay-row pay-row-jackpot">
                     <div className="pay-icon">{getLuxurySymbolSVG('WILD')}</div>
-                    <span className="symbol-name">Diamond Wild — rows 2/3/4. Substitutes for every symbol incl. the Scatter, and doubles the line.</span>
+                    <span className="symbol-name">Diamond Wild — reels 2/3/4. Substitutes for any line symbol and doubles the line pay. <strong>Counts toward the scatter total</strong> for triggering the free-spin bonus, but does not pay as a Scatter.</span>
                   </div>
                   <div className="pay-row pay-row-cherry">
                     <div className="pay-icon">{getLuxurySymbolSVG('SCATTER')}</div>
-                    <span className="symbol-name">Gold Coin Scatter — pays × total bet (3:×2 4:×15 5:×100). Diamond Wilds count as Scatters; 3+ awards {FREE_SPINS_AWARDED} free spins.</span>
+                    <span className="symbol-name">Gold COIN is the scatter. 3+ <strong>COINs or COIN/WILD mix</strong> anywhere on the grid awards {FREE_SPINS_AWARDED} free spins. Scatter pays × total bet on COIN-only count: 3 = 2×, 4 = 15×, 5 = 100×.</span>
                   </div>
                   <div className="rules-section" style={{ marginTop: 10 }}>
                     <h3>FREE SPIN BONUS</h3>
-                    <p>{FREE_SPINS_AWARDED} free spins on a richer reel set.
-                      Every diamond wild on rows 2/3/4 is collected and permanently
-                      raises a persistent multiplier — starting at 2× and climbing
-                      +1 per diamond to a maximum of {MAX_BONUS_MULTIPLIER}×.</p>
+                    <p>{FREE_SPINS_AWARDED} free spins on an alternate reel set.
+                      Every Diamond Wild that lands on reels 2/3/4 is collected
+                      and permanently raises a persistent multiplier — starting
+                      at {BONUS_BASE_MULTIPLIER}× and climbing +1 per diamond to a
+                      maximum of {MAX_BONUS_MULTIPLIER}×.</p>
                   </div>
                 </div>
               </div>
@@ -1269,14 +1333,14 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                 <section className="rules-section">
                   <h3>HOW TO PLAY</h3>
                   <ol>
-                    <li>Choose how many of the {NUM_PAYLINES} lines to play and your bet per line (or tap MAX).</li>
-                    <li>Press SPIN. Reels spin left→right; wins pay top→bottom from row 1, 3+ of a kind (Jet pays from 2).</li>
-                    <li>A diamond wild on rows 2/3/4 doubles any line it completes.</li>
-                    <li>3+ gold coins trigger {FREE_SPINS_AWARDED} free spins with a growing multiplier.</li>
+                    <li>Choose up to {MAX_SELECTABLE_LINES} lines to play and your bet per line (or tap MAX).</li>
+                    <li>Press SPIN. Wins pay <strong>left → right from reel 1</strong>, 3+ of a kind (Yacht pays from 2).</li>
+                    <li>A Diamond Wild on reels 2/3/4 doubles any line it completes.</li>
+                    <li>3+ scatter symbols (Gold COINs and Diamond WILDs both count) trigger {FREE_SPINS_AWARDED} free spins with a growing multiplier. Only COINs pay as scatters.</li>
                   </ol>
                 </section>
                 <section className="rules-section">
-                  <h3>{NUM_PAYLINES} PAYLINES</h3>
+                  <h3>{MAX_SELECTABLE_LINES} PAYLINES</h3>
                   <div className="paylines-grid">
                     {PAYLINES.map((line, i) => (
                       <LuxPaylineDiagram key={i} index={i} rows={line} />
@@ -1285,7 +1349,7 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                 </section>
                 <section className="rules-section">
                   <h3>FAIRNESS</h3>
-                  <p>Outcomes use a Mersenne Twister RNG seeded at launch from system entropy.</p>
+                  <p>Outcomes are decided by a server-side cryptographic RNG (Postgres pgcrypto) seeded from system entropy on every spin.</p>
                   <p>Theoretical return to player: <strong>{GAME_RTP}</strong></p>
                 </section>
               </div>
@@ -1307,10 +1371,10 @@ export default function DiamondRichesView({ onExit }: Props = {}) {
                 <h3>Game</h3>
                 <dl className="info-dl">
                   <dt>Title</dt><dd>Diamond Riches</dd>
-                  <dt>Layout</dt><dd>3 columns × 5 rows</dd>
-                  <dt>Paylines</dt><dd>1–{NUM_PAYLINES} selectable</dd>
+                  <dt>Layout</dt><dd>5 reels × 3 rows</dd>
+                  <dt>Paylines</dt><dd>1–{MAX_SELECTABLE_LINES} selectable</dd>
                   <dt>RTP</dt><dd>{GAME_RTP}</dd>
-                  <dt>RNG</dt><dd>Mersenne Twister</dd>
+                  <dt>RNG</dt><dd>Cryptographic (server-side, pgcrypto)</dd>
                   <dt>Volatility</dt><dd>Medium-High</dd>
                 </dl>
               </section>

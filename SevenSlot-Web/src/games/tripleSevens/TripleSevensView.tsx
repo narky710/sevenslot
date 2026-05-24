@@ -1,18 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  TripleSevenEngine,
   GameState,
   distributeBetCents,
   CREDIT_VALUE_CENTS,
   MAX_TOTAL_CREDITS,
   MIN_TOTAL_CREDITS,
 } from '../../engine/TripleSevenEngine';
+import { Triple7ServerAdapter } from './Triple7ServerAdapter';
 import { getSymbolSVG } from '../../symbols/TripleSevensSymbols';
 import { audio as rawAudio } from '../../audio';
 import { haptics as rawHaptics } from '../../haptics';
 import { classifyWinTier, type WinTier } from '../../utils/winTier';
-import { loadCredits, saveCredits } from '../../utils/creditStorage';
 import '../../styles/index.css';
+import { setAutoSpinning } from '../../idle/IdleSignal';
 
 /**
  * Safe wrappers: audio/haptics are pure enhancement. A bug or unsupported
@@ -105,16 +105,28 @@ const prefersReducedMotion = () =>
 
 interface Props {
   onExit?: () => void;
+  initialBalanceCents?: number;
+  freePlayCents?: number;
+  onBalanceChange?: (cents: number) => void;
 }
 
-export default function TripleSevensView({ onExit }: Props = {}) {
-  const engineRef = useRef(new TripleSevenEngine(loadCredits()));
+export default function TripleSevensView({ onExit, initialBalanceCents = 0, freePlayCents = 0, onBalanceChange }: Props = {}) {
+  const engineRef = useRef(new Triple7ServerAdapter(initialBalanceCents));
+  useEffect(() => { engineRef.current.setBalance(initialBalanceCents); }, [initialBalanceCents]);
 
   const [state, setState] = useState<GameState>(engineRef.current.getState());
+  const [spinError, setSpinError] = useState<string | null>(null);
   const [betAmountCents, setBetAmountCents] = useState(5);
   const [isSpinning, setIsSpinning] = useState(false);
   const [autoSpinEnabled, setAutoSpinEnabled] = useState(false);
   const [autoSpinCount, setAutoSpinCount] = useState(0);
+
+  // Notify the global IdleSignal so the 15-min auto-signout timer in
+  // Authenticated suspends while auto-spin is running. On unmount, clear.
+  useEffect(() => {
+    setAutoSpinning(autoSpinEnabled);
+    return () => { setAutoSpinning(false); };
+  }, [autoSpinEnabled]);
   // Initial reel state is randomized so the player doesn't see a uniform
   // wall of Red 7s on load. Uses the engine's weighted reel strip — same
   // distribution as a real spin — so the load looks representative of
@@ -132,8 +144,8 @@ export default function TripleSevensView({ onExit }: Props = {}) {
   const [sessionStart] = useState(() => Date.now());
   const [sessionMs, setSessionMs] = useState(0);
 
-  // Persist credits whenever the balance changes.
-  useEffect(() => { saveCredits(state.credits); }, [state.credits]);
+  // Server is authoritative for credits; bubble up so the wallet hook refreshes.
+  useEffect(() => { onBalanceChange?.(state.credits); }, [state.credits, onBalanceChange]);
 
   const autoSpinIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const winCountIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -175,10 +187,9 @@ export default function TripleSevensView({ onExit }: Props = {}) {
     }
   };
 
-  const handleSpin = useCallback(() => {
-    if (isSpinning) return; // BETA: credit check removed — overdraft allowed
+  const handleSpin = useCallback(async () => {
+    if (isSpinning) return;
 
-    // First-tap audio unlock
     audio.unlock();
     audio.click();
     haptics.medium();
@@ -189,10 +200,23 @@ export default function TripleSevensView({ onExit }: Props = {}) {
     setDisplayWinAmount(0);
     setWinTier(null);
     setStoppedReels([false, false, false]);
+    setSpinError(null);
 
-    // Run engine immediately to determine final positions
-    engineRef.current.spin(betAmountCents);
-    const newState = engineRef.current.getState();
+    // Server is authoritative — wait for the outcome before scheduling reel stops.
+    // The live-tumble below covers the network latency visually.
+    let newState: GameState;
+    try {
+      await engineRef.current.spin(betAmountCents);
+      newState = engineRef.current.getState();
+    } catch (err) {
+      clearReelTimers();
+      audio.stopSpin();
+      setIsSpinning(false);
+      setAutoSpinEnabled(false);
+      setAutoSpinCount(0);
+      setSpinError(err instanceof Error ? err.message : String(err));
+      return;
+    }
     const finalPositions = newState.reelPositions;
 
     // Sequential 3-reel stop (left → middle → right) with anticipation hold
@@ -335,12 +359,8 @@ export default function TripleSevensView({ onExit }: Props = {}) {
   useEffect(() => {
     if (autoSpinEnabled && autoSpinCount > 0 && !isSpinning && modal === 'none') {
       autoSpinIntervalRef.current = setTimeout(() => {
-        { // BETA: credit check removed — overdraft allowed
-          setAutoSpinCount((p) => p - 1);
-          handleSpin();
-        } else {
-          setAutoSpinEnabled(false);
-        }
+        setAutoSpinCount((p) => p - 1);
+        void handleSpin();
       }, 800);
     } else if (autoSpinCount === 0 && autoSpinEnabled) {
       setAutoSpinEnabled(false);
@@ -431,6 +451,20 @@ export default function TripleSevensView({ onExit }: Props = {}) {
       className={`stage ${winTier ? `win-tier-${winTier}` : ''}`}
       aria-label="Triple Sevens slot machine"
     >
+      {spinError && (
+        <div
+          role="alert"
+          onClick={() => setSpinError(null)}
+          style={{
+            position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 9999, background: '#3a1212', border: '1px solid #ff5252',
+            color: '#ffb3b3', padding: '10px 16px', borderRadius: 6, cursor: 'pointer',
+            fontFamily: '-apple-system, sans-serif', fontSize: 13, maxWidth: 400,
+          }}
+        >
+          {spinError} <span style={{ opacity: 0.6 }}>(tap to dismiss)</span>
+        </div>
+      )}
       {/* Cabinet bezel */}
       <div className="cabinet-frame">
         <div className="cabinet-inner">
@@ -699,7 +733,7 @@ export default function TripleSevensView({ onExit }: Props = {}) {
             <footer className="footer">
               <div className="footer-readout led-frame">
                 <span className="readout-label">CREDIT</span>
-                <span className="led-value led-amber-sm">{formatCents(state.credits)}</span>
+                <span className="led-value led-amber-sm">{formatCents(state.credits + freePlayCents)}</span>
               </div>
               <div className="footer-readout led-frame">
                 <span className="readout-label">BET</span>

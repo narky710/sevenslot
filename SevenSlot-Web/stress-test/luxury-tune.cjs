@@ -36,7 +36,7 @@ function comp(hi) {
 function fillReel(counts) {
   const a = [];
   for (const [sym, n] of Object.entries(counts)) for (let i = 0; i < n; i++) a.push(sym);
-  while (a.length < LEN) a.push('GOLD_BAR');
+  while (a.length < LEN) a.push('BLANK');
   // Deterministic spread so identical symbols aren't all adjacent (matters for
   // 3-window reads): interleave by index hashing.
   a.sort((x, y) => (hash(x) % 7) - (hash(y) % 7) || x.localeCompare(y));

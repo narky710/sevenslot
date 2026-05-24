@@ -1,6 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  DoubleUpKenoEngine,
   KenoState,
   PAYTABLE,
   MIN_BET_CENTS,
@@ -13,11 +12,28 @@ import {
   designedRTP,
 } from '../../engine/DoubleUpKenoEngine';
 import '../../styles/index.css';
-import { classifyWinTier, type WinTier } from '../../utils/winTier';
-import { loadCredits, saveCredits } from '../../utils/creditStorage';
+import { classifyWinTier } from '../../utils/winTier';
+import { KenoServerAdapter } from './KenoServerAdapter';
 
 interface Props {
   onExit: () => void;
+  initialBalanceCents: number;
+  freePlayCents?: number;
+  onBalanceChange: (cents: number) => void;
+}
+
+function errorMessage(e: unknown): string {
+  if (typeof e === 'string') return e;
+  if (e && typeof e === 'object') {
+    const obj = e as Record<string, unknown>;
+    if (typeof obj.message === 'string' && obj.message) return obj.message;
+    const inner = obj.error;
+    if (inner && typeof inner === 'object' && typeof (inner as Record<string, unknown>).message === 'string') {
+      return (inner as Record<string, string>).message;
+    }
+    try { return JSON.stringify(e); } catch { /* fall through */ }
+  }
+  return String(e);
 }
 
 function formatCents(cents: number): string {
@@ -27,15 +43,24 @@ function formatCents(cents: number): string {
   return rem === 0 ? `$${dollars}` : `$${dollars}.${rem.toString().padStart(2, '0')}`;
 }
 
-export default function DoubleUpKenoView({ onExit }: Props) {
-  const engineRef = useRef(new DoubleUpKenoEngine(loadCredits()));
+export default function DoubleUpKenoView({ onExit, initialBalanceCents, freePlayCents = 0, onBalanceChange }: Props) {
+  const engineRef = useRef(new KenoServerAdapter(initialBalanceCents));
   const [state, setState] = useState<KenoState>(() => engineRef.current.getState());
   const [showPaytable, setShowPaytable] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Keep adapter's local credit shadow in sync when the parent wallet updates
+  // (e.g. after another game's spin or an admin adjustment landing while idle).
+  useEffect(() => {
+    engineRef.current.setBalance(initialBalanceCents);
+    setState({ ...engineRef.current.getState() });
+  }, [initialBalanceCents]);
 
   const sync = () => {
     const s = engineRef.current.getState();
-    setState(s);
-    saveCredits(s.credits);
+    setState({ ...s });
+    onBalanceChange(s.credits);
   };
 
   const togglePick = (n: number) => {
@@ -45,15 +70,28 @@ export default function DoubleUpKenoView({ onExit }: Props) {
     sync();
   };
 
-  const handlePlay = () => {
-    if (state.picks.length < MIN_SPOTS) return;
-    // BETA: credit check removed — overdraft allowed
-    engineRef.current.play();
-    sync();
+  const handlePlay = async () => {
+    if (state.picks.length < MIN_SPOTS || busy) return;
+    setBusy(true); setError(null);
+    try { await engineRef.current.play(); sync(); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(false); }
   };
 
-  const handleDoubleUp = () => { engineRef.current.doubleUp(); sync(); };
-  const handleStay = () => { engineRef.current.stay(); sync(); };
+  const handleDoubleUp = async () => {
+    if (busy) return;
+    setBusy(true); setError(null);
+    try { await engineRef.current.doubleUp(); sync(); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(false); }
+  };
+  const handleStay = async () => {
+    if (busy) return;
+    setBusy(true); setError(null);
+    try { await engineRef.current.stay(); sync(); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(false); }
+  };
   const handleNewRound = () => { engineRef.current.newRound(); sync(); };
 
   const adjustBet = (delta: number) => {
@@ -83,9 +121,8 @@ export default function DoubleUpKenoView({ onExit }: Props) {
     return n;
   }, [state.firstHalfDrawn, pickSet]);
 
-  // BETA: credit check removed — overdraft allowed during testing.
-  const canPlay = spotsPlayed >= MIN_SPOTS && state.phase === 'idle';
-  const canDouble = state.phase === 'awaitingChoice';
+  const canPlay = spotsPlayed >= MIN_SPOTS && state.phase === 'idle' && !busy;
+  const canDouble = state.phase === 'awaitingChoice' && !busy;
 
   const winTier =
     state.phase === 'resolved' && state.lastWinAmount > 0
@@ -257,7 +294,7 @@ export default function DoubleUpKenoView({ onExit }: Props) {
               </div>
               <div className="led-frame keno-stat">
                 <span className="readout-label">CREDIT</span>
-                <span className="led-amber-sm">{formatCents(state.credits)}</span>
+                <span className="led-amber-sm">{formatCents(state.credits + freePlayCents)}</span>
               </div>
             </div>
 
@@ -341,9 +378,9 @@ export default function DoubleUpKenoView({ onExit }: Props) {
                 </button>
               </div>
             )}
-            {state.phase === 'awaitingChoice' && !canDouble && (
-              <p className="keno-du-warn">
-                Not enough credits to double — you can still STAY.
+            {error && (
+              <p className="keno-du-warn" role="alert" onClick={() => setError(null)}>
+                {error}
               </p>
             )}
 

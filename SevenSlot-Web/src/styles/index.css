@@ -1862,17 +1862,17 @@ button:focus-visible {
   color: var(--col-cream);
 }
 
-/* Hit — picked AND drawn. Brightest state, with the same gold glow as a
-   winning reel cell. */
+/* Hit — picked AND drawn. Vivid emerald to read clearly as a WIN and stay
+   distinct from the gold "picked" state. */
 .keno-spot.spot-hit {
-  background: linear-gradient(180deg, #FFEC8A, var(--col-gold) 55%, var(--col-gold-deep));
-  color: #1a1a1a;
-  border-color: var(--col-gold);
+  background: linear-gradient(180deg, #A8FFC6, #18C76C 55%, #0B6B3A);
+  color: #062b16;
+  border-color: #18C76C;
   box-shadow:
-    0 0 14px var(--col-gold),
-    inset 0 0 12px rgba(255, 217, 61, 0.5),
+    0 0 16px rgba(124, 252, 159, 0.85),
+    inset 0 0 14px rgba(168, 255, 198, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.55);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 /* Status row — five compact LED chips spread across the cabinet. */

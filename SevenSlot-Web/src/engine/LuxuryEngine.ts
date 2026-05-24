@@ -30,57 +30,71 @@ import { type GameMeters, initMeters, cloneMeters, recordSpin } from '../utils/m
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type SymbolId =
+  // Source-faithful Pot-O-Gold ordering. Names 1..9 match the server's
+  // _luxury_line_mult paytable (YACHT=1 highest, GOLD_SMALL=9 lowest).
+  | 'YACHT'         // 1 — top tier (1×, 5×, 50×, 500×)
+  | 'MOTORBOAT'     // 2
+  | 'SPORTS_CAR'    // 3
+  | 'RING'          // 4
+  | 'CASH_WADS'     // 5
+  | 'WHEEL'         // 6 (tire/rim)
+  | 'GOLD_BARS'     // 7
+  | 'WHITE_CARD'    // 8
+  | 'GOLD_SMALL'    // 9 — lowest tier
+  | 'WILD'          // 13
+  | 'SCATTER'       // 14 (gold coin)
+  | 'BLANK'         // 0 (also catches retired indices 10/11/12)
+  // ── Legacy names retained so the original client-engine (LuxuryEngine
+  //    Mersenne-twister build) still type-checks; the server never emits
+  //    these indices anymore, so reels never render them in prod.
   | 'JET'
-  | 'YACHT'
   | 'CAR'
   | 'MONEY'
-  | 'RING'
   | 'WATCH'
-  | 'GOLD_BARS'
   | 'SILVER_BARS'
   | 'GOLD_BAR'
   | 'BOW_TIE'
   | 'SUNGLASSES'
-  | 'PERFUME'
-  | 'WILD'
-  | 'SCATTER'
-  | 'BLANK';
+  | 'PERFUME';
 
 export const NUM_REELS = 5;
 export const NUM_ROWS = 3;
-/** 20 fixed paylines (cabinet-accurate per the revised spec). */
+/** 20 fixed paylines on the cabinet (geometry). */
 export const NUM_PAYLINES = 20;
+/**
+ * Player-selectable max line count. Server max is also 15 (see luxury_config
+ * + play_diamond clamp). The cabinet geometry has 20 paylines defined but
+ * only the first 15 are ever activatable.
+ */
+export const MAX_SELECTABLE_LINES = 15;
 
 /**
- * Money is denominated in CREDITS. Per the cabinet, 1 credit = $0.01, so the
- * 400-credit max bet (20 lines × 20 credits/line) is exactly $4.00. The engine
- * stores everything as integer credits; `creditsToDollars` is only for the
- * jackpot/$ displays. (Internally identical to a cents model — 1 credit ≡ 1¢.)
+ * Money is denominated in CREDITS. Per the cabinet, 1 credit = $0.01. Max
+ * total bet = 15 lines × 10 credits/line = 150 credits ($1.50).
  */
 export const CREDIT_VALUE_DOLLARS = 0.01;
 export const creditsToDollars = (credits: number): number => credits * CREDIT_VALUE_DOLLARS;
 
 /**
  * Bet levers: number of active paylines × credits wagered per line.
- * Per-line options 1/2/3/5/10/20 credits; default 20 → 20×20 = 400 max.
- * (Kept the LINE_BET_*_CENTS names to avoid a churny rename; 1 credit ≡ 1¢.)
+ * Per-line options 1/2/3/5/10 credits; max line bet = 10 → 15×10 = 150 max.
  */
-export const LINE_BET_STEPS_CENTS: ReadonlyArray<number> = [1, 2, 3, 5, 10, 20];
+export const LINE_BET_STEPS_CENTS: ReadonlyArray<number> = [1, 2, 3, 5, 10];
 export const MIN_LINE_BET_CENTS = LINE_BET_STEPS_CENTS[0];
 export const MAX_LINE_BET_CENTS = LINE_BET_STEPS_CENTS[LINE_BET_STEPS_CENTS.length - 1];
-export const DEFAULT_LINE_BET_CENTS = 20;
+export const DEFAULT_LINE_BET_CENTS = 10;
 
 /**
  * Selectable line counts. Paylines are priority-ordered in PAYLINES (line 1 =
  * middle horizontal first), so activating N lines means the first N entries.
- * Default = all 20 (the cabinet ships all 20 active).
+ * Default = all 15 (the cabinet ships at the max selectable count).
  */
-export const LINE_COUNT_OPTIONS: ReadonlyArray<number> = [1, 5, 10, 15, 20];
-export const DEFAULT_LINE_COUNT = NUM_PAYLINES;
+export const LINE_COUNT_OPTIONS: ReadonlyArray<number> = [1, 5, 10, 15];
+export const DEFAULT_LINE_COUNT = MAX_SELECTABLE_LINES;
 
 /** Max total bet in credits (= cents) — used to bet-scale jackpot odds. */
 export const MAX_TOTAL_BET_CENTS =
-  MAX_LINE_BET_CENTS * NUM_PAYLINES; // 20 × 20 = 400 ($4.00)
+  MAX_LINE_BET_CENTS * MAX_SELECTABLE_LINES; // 10 × 15 = 150 ($1.50)
 
 /**
  * Line-win multipliers, applied to BET PER LINE. A win needs 3+ consecutive
@@ -90,21 +104,24 @@ export const MAX_TOTAL_BET_CENTS =
  * the revised spec); reel strips are then Monte-Carlo tuned to 94–96% RTP.
  */
 export const PAYTABLE: Readonly<Record<SymbolId, Readonly<Record<number, number>>>> = {
-  JET: { 2: 0, 3: 0, 4: 0, 5: 3 },
-  YACHT: { 3: 0, 4: 0, 5: 0 },
-  CAR: { 3: 0, 4: 0, 5: 1 },
-  MONEY: { 3: 0, 4: 0, 5: 0 },
-  RING: { 3: 0, 4: 0, 5: 0 },
-  WATCH: { 3: 0, 4: 0, 5: 0 },
-  GOLD_BARS: { 3: 0, 4: 0, 5: 0 },
-  SILVER_BARS: { 3: 0, 4: 0, 5: 0 },
-  GOLD_BAR: { 3: 0, 4: 0, 5: 0 },
-  BOW_TIE: { 5: 0 },
-  SUNGLASSES: { 5: 0 },
-  PERFUME: { 5: 0 },
-  SCATTER: { 3: 1, 4: 1, 5: 1 },
+  // Source-faithful Pot-O-Gold paytable. Server-side _luxury_line_mult is the
+  // authority — these are mirrored for the in-game info modal display only.
+  YACHT:       { 2: 10, 3: 50,  4: 500, 5: 5000 },
+  MOTORBOAT:   { 2: 5,  3: 30,  4: 200, 5: 1000 },
+  SPORTS_CAR:  { 3: 20, 4: 100, 5: 500 },
+  RING:        { 3: 15, 4: 75,  5: 200 },
+  CASH_WADS:   { 3: 10, 4: 50,  5: 200 },
+  WHEEL:       { 3: 10, 4: 30,  5: 150 },
+  GOLD_BARS:   { 3: 5,  4: 30,  5: 150 },
+  WHITE_CARD:  { 3: 5,  4: 25,  5: 120 },
+  GOLD_SMALL:  { 3: 5,  4: 20,  5: 100 },
+  SCATTER:     { 3: 2,  4: 15,  5: 100 },
   WILD: {},
   BLANK: {},
+  // Legacy retained for typing; never rendered.
+  JET: { 5: 0 }, CAR: { 5: 0 }, MONEY: { 5: 0 }, WATCH: { 5: 0 },
+  SILVER_BARS: { 5: 0 }, GOLD_BAR: { 5: 0 },
+  BOW_TIE: { 5: 0 }, SUNGLASSES: { 5: 0 }, PERFUME: { 5: 0 },
 };
 
 /**
@@ -193,10 +210,13 @@ export const FREE_SPIN_REELS: ReadonlyArray<ReadonlyArray<SymbolId>> = [
 
 // ─── Bonus tuning ────────────────────────────────────────────────────────────
 /** Free spins awarded on 3+ scatters (and added again on each retrigger). */
-export const FREE_SPINS_AWARDED = 10;
+export const FREE_SPINS_AWARDED = 11;
 export const BONUS_BASE_MULTIPLIER = 2;
-export const MAX_DIAMONDS = 5;
-export const MAX_BONUS_MULTIPLIER = BONUS_BASE_MULTIPLIER + MAX_DIAMONDS; // 7
+// Server is the source of truth: play_diamond uses v_max_diamonds = 27 and
+// v_base_mult = 2, so the bonus multiplier climbs 2× → 29×. Constants kept
+// in sync so the info modal text matches what the server actually awards.
+export const MAX_DIAMONDS = 27;
+export const MAX_BONUS_MULTIPLIER = BONUS_BASE_MULTIPLIER + MAX_DIAMONDS; // 29
 export const SCATTERS_TO_TRIGGER = 3;
 /** Wilds are collected from reels 2/3/4 — 0-based reel indices [1,2,3]. */
 export const WILD_COLLECT_REELS: ReadonlyArray<number> = [1, 2, 3];
@@ -391,20 +411,20 @@ export class LuxuryEngine {
     this.recomputeTotalBet();
   }
 
-  /** Set the active line count. Clamped to 1..NUM_PAYLINES (whole lines). */
+  /** Set the active line count. Clamped to 1..MAX_SELECTABLE_LINES. */
   setLineCount(count: number): void {
     if (this.state.phase !== 'base' || this.state.isSpinning) return;
     const n = Math.round(count);
-    this.state.lineCount = Math.max(1, Math.min(NUM_PAYLINES, n));
+    this.state.lineCount = Math.max(1, Math.min(MAX_SELECTABLE_LINES, n));
     this.recomputeTotalBet();
   }
 
-  /** Step the active line count by exactly one, clamped to 1..NUM_PAYLINES. */
+  /** Step the active line count by exactly one, clamped to 1..MAX_SELECTABLE_LINES. */
   stepLineCount(direction: 1 | -1): void {
     if (this.state.phase !== 'base' || this.state.isSpinning) return;
     this.state.lineCount = Math.max(
       1,
-      Math.min(NUM_PAYLINES, this.state.lineCount + direction)
+      Math.min(MAX_SELECTABLE_LINES, this.state.lineCount + direction)
     );
     this.recomputeTotalBet();
   }
