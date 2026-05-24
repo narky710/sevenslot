@@ -2263,6 +2263,59 @@ button:focus-visible {
   50% { box-shadow: inset 0 0 16px rgba(0, 212, 255, 0.08); }
 }
 
+/* ── Bonus tease / sweat (driven by src/utils/bonusSweat.ts) ───────────
+   Applied to still-spinning reels when COIN+WILD count has reached 2+.
+   Intensity escalates per additional trigger symbol on stopped reels.
+   sweat-2 = 2 visible (sweating toward 3, the bonus trigger)
+   sweat-3 = 3 visible (bonus locked; sweating for retrigger upgrade later)
+   sweat-4 = 4 visible (bigger bonus locked; rare territory)
+   sweat-5 = 5+ visible (race-to-celebration pace; bonus is locked deep) */
+.lux-reel.sweat-2 {
+  animation: luxSweat2 0.7s ease-in-out infinite alternate;
+  background: linear-gradient(90deg, rgba(40,15,4,0.7), rgba(10,5,3,0.5));
+}
+.lux-reel.sweat-3 {
+  animation: luxSweat3 0.55s ease-in-out infinite alternate;
+  background: linear-gradient(90deg, rgba(60,31,15,0.85), rgba(26,10,4,0.7));
+}
+.lux-reel.sweat-4 {
+  animation: luxSweat4 0.4s ease-in-out infinite alternate;
+  background: linear-gradient(90deg, rgba(76,37,16,0.95), rgba(42,19,8,0.85));
+}
+.lux-reel.sweat-5 {
+  animation: luxSweat2 0.9s ease-in-out infinite alternate;
+  background: linear-gradient(90deg, rgba(40,15,4,0.6), rgba(10,5,3,0.4));
+}
+.lux-reel.holding {
+  /* Used on the specific reel being held ≥ 10s while it lands one or
+     more additional trigger symbols. Full-roar pulse, brightest in the
+     grid — the player should *feel* this is "the one". */
+  animation: luxSweat4 0.32s ease-in-out infinite alternate;
+  box-shadow:
+    0 0 24px rgba(255,217,61,0.6),
+    inset 0 0 0 2px #FFE07A,
+    inset 0 0 18px rgba(255,217,61,0.5);
+}
+
+@keyframes luxSweat2 {
+  from { box-shadow: inset 0 0 10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,217,61,0.20); }
+  to   { box-shadow: inset 0 0 12px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,217,61,0.55),
+                     0 0 14px rgba(255,217,61,0.35); }
+}
+@keyframes luxSweat3 {
+  from { box-shadow: inset 0 0 10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,217,61,0.35); }
+  to   { box-shadow: inset 0 0 14px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,217,61,0.75),
+                     0 0 22px rgba(255,217,61,0.55); }
+}
+@keyframes luxSweat4 {
+  from { box-shadow: inset 0 0 12px rgba(0,0,0,0.5),
+                     inset 0 0 0 2px rgba(255,251,235,0.45),
+                     0 0 12px rgba(255,217,61,0.5); }
+  to   { box-shadow: inset 0 0 16px rgba(0,0,0,0.6),
+                     inset 0 0 0 2px rgba(255,251,235,1),
+                     0 0 32px rgba(255,217,61,0.9); }
+}
+
 .lux-cell {
   position: relative;
   flex: 1;

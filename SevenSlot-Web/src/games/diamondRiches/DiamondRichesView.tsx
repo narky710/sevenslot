@@ -30,6 +30,13 @@ import { classifyWinTier, type WinTier } from '../../utils/winTier';
 import { haptics as rawHaptics } from '../../haptics';
 import '../../styles/index.css';
 import { setAutoSpinning } from '../../idle/IdleSignal';
+import {
+  computeStopDelayMs,
+  sweatTierFor,
+  shouldHoldForTrigger,
+  HOLD_MIN_MS,
+  SWEAT_TRIGGER_MIN,
+} from '../../utils/bonusSweat';
 
 function errorMessage(e: unknown): string {
   if (typeof e === 'string') return e;
@@ -193,6 +200,13 @@ export default function DiamondRichesView({
   const [stoppedReels, setStoppedReels] = useState<boolean[]>(
     () => Array(NUM_REELS).fill(true)
   );
+  // Bonus-tease state driven by src/utils/bonusSweat.ts. `reelSweatTier`
+  // applies sweat-2/3/4/5 to all still-spinning reel containers; `holdingReelIdx`
+  // marks the single reel currently in the 10-second JP-style hold (full-
+  // roar gold glow on just that reel).
+  const [reelSweatTier, setReelSweatTier] =
+    useState<'normal' | 'sweat-2' | 'sweat-3' | 'sweat-4' | 'sweat-5'>('normal');
+  const [holdingReelIdx, setHoldingReelIdx] = useState<number | null>(null);
   const [activeWinLines, setActiveWinLines] = useState<number[]>([]);
   // Briefly overlays the active paylines on the reels when LINES changes.
   const [linePreview, setLinePreview] = useState(false);
@@ -344,14 +358,16 @@ export default function DiamondRichesView({
         }, tickMs);
       }
 
-      // Anticipation: 2+ scatters across reels 1 & 2 slows the back reels.
-      const firstTwoScatters =
-        finalGrid[0].filter((s) => s === 'SCATTER').length +
-        finalGrid[1].filter((s) => s === 'SCATTER').length;
-      const anticipate = firstTwoScatters >= 2 && !reduceMotion;
+      // Pre-compute the trigger-symbol count for each reel (COIN=SCATTER
+      // and WILD both count toward the bonus trigger per current rule).
+      // Then walk reels left-to-right, accumulating the running visible
+      // trigger count to drive the progressive sweat + 10s hold module.
+      const reelTriggers = finalGrid.map((reel) =>
+        reel.filter((s) => s === 'SCATTER' || s === 'WILD').length
+      );
 
-      const baseStop = reduceMotion ? 40 : 620;
-      const stagger = reduceMotion ? 40 : 260;
+      const baseFirstStop = reduceMotion ? 40 : 620;
+      const baseStagger = reduceMotion ? 40 : 260;
 
       const stopReel = (reelIdx: number) => {
         stoppedReelsSnapshot.current[reelIdx] = true;
@@ -371,16 +387,59 @@ export default function DiamondRichesView({
       };
 
       stoppedReelsSnapshot.current = Array(NUM_REELS).fill(false);
-      let cumulative = baseStop;
+      let cumulative = baseFirstStop;
+      let runningTriggers = 0;
+      // Track when we entered sweat for anticipation audio cue.
+      let firedAnticipationCue = false;
+
       for (let r = 0; r < NUM_REELS; r++) {
-        if (anticipate && r === 2) {
+        const incomingCount = reelTriggers[r];
+        const willAddMore = incomingCount > 0;
+
+        // For reel 0, only use the base first-stop offset. For later reels,
+        // compute the per-reel delay from the sweat module — accounting for
+        // both the current sweat tier and whether this reel will trigger a
+        // 10-second hold (sweat already active AND this reel adds more).
+        let delay: number;
+        if (r === 0) {
+          delay = 0;
+        } else if (reduceMotion) {
+          delay = baseStagger;
+        } else {
+          delay = computeStopDelayMs(runningTriggers, willAddMore, baseStagger);
+        }
+
+        cumulative += delay;
+        const stopAt = cumulative;
+        const sweatActiveThisStop = runningTriggers >= SWEAT_TRIGGER_MIN;
+        const holdingThisStop = !reduceMotion &&
+          shouldHoldForTrigger(runningTriggers, willAddMore);
+
+        // Fire the anticipation audio cue once, the moment sweat first
+        // engages on a reel that's about to stop into the sweat window.
+        if (sweatActiveThisStop && !firedAnticipationCue && !reduceMotion) {
           reelStopTimersRef.current.push(
-            setTimeout(() => audio.anticipation(), cumulative - 150)
+            setTimeout(() => audio.anticipation(), Math.max(0, stopAt - 150))
+          );
+          firedAnticipationCue = true;
+        }
+
+        // Schedule a class-flip on the still-spinning reels at the moment
+        // this delay window OPENS — so the player sees the sweat ramp up
+        // visually as soon as the prior reel landed (not when this one
+        // finishes). Applies sweat-2/3/4/5 to all reels not yet stopped.
+        if (!reduceMotion && (sweatActiveThisStop || holdingThisStop)) {
+          const tier = sweatTierFor(runningTriggers);
+          const openWindowAt = stopAt - delay; // when this reel's wait begins
+          const heldReelIndex = r;
+          reelStopTimersRef.current.push(
+            setTimeout(() => {
+              setReelSweatTier(tier);
+              setHoldingReelIdx(holdingThisStop ? heldReelIndex : null);
+            }, Math.max(0, openWindowAt))
           );
         }
-        const extra = anticipate && r >= 2 ? 700 : 0;
-        cumulative += (r === 0 ? 0 : stagger) + extra;
-        const stopAt = cumulative;
+
         if (r < NUM_REELS - 1) {
           reelStopTimersRef.current.push(setTimeout(() => stopReel(r), stopAt));
         } else {
@@ -390,10 +449,17 @@ export default function DiamondRichesView({
               if (spinTickRef.current) { clearInterval(spinTickRef.current); spinTickRef.current = null; }
               audio.stopSpin();
               setDisplayGrid(finalGrid.map((reel) => [...reel]));
+              // Clear sweat / holding state once all reels are settled.
+              setReelSweatTier('normal');
+              setHoldingReelIdx(null);
               onSettled(result);
             }, stopAt)
           );
         }
+
+        // Update running count AFTER scheduling this stop. This count is
+        // what subsequent reels see when computing their own sweat tier.
+        runningTriggers += incomingCount;
       }
     },
     [reduceMotion]
@@ -919,10 +985,18 @@ export default function DiamondRichesView({
                 role="grid"
                 aria-label="Slot reels, 3 columns by 5 rows"
               >
-              {Array.from({ length: NUM_REELS }).map((_, reel) => (
+              {Array.from({ length: NUM_REELS }).map((_, reel) => {
+                const isStillSpinning = isSpinning && !stoppedReels[reel];
+                const sweatClass = isStillSpinning && reelSweatTier !== 'normal'
+                  ? reelSweatTier
+                  : '';
+                const holdingClass = isStillSpinning && holdingReelIdx === reel
+                  ? 'holding'
+                  : '';
+                return (
                 <div
                   key={reel}
-                  className={`lux-reel ${isSpinning && !stoppedReels[reel] ? 'spinning' : ''}`}
+                  className={`lux-reel ${isStillSpinning ? 'spinning' : ''} ${sweatClass} ${holdingClass}`}
                   role="row"
                 >
                   {Array.from({ length: NUM_ROWS }).map((_, col) => {
@@ -943,7 +1017,8 @@ export default function DiamondRichesView({
                     );
                   })}
                 </div>
-              ))}
+                );
+              })}
 
               {/* Winning payline overlay — vertical paths top-to-bottom */}
               {activeWinLines.length > 0 && !isSpinning && (

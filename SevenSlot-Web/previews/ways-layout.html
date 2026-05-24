@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Ways game — layout preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(ellipse at top, #2C1810 0%, #050201 100%);
+    min-height: 100vh;
+    color: #FEF3C7;
+    padding: 24px 12px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  h1 {
+    font-family: Georgia, serif;
+    font-size: 22px; font-weight: 900; letter-spacing: 2px;
+    background: linear-gradient(180deg, #FFFBEB 0%, #FBBF24 50%, #92400E 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 12px rgba(251,191,36,0.5));
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 10px; letter-spacing: 3px; color: #FED7AA;
+    margin-bottom: 18px; text-transform: uppercase;
+  }
+  .cabinet {
+    background: linear-gradient(180deg, #1A0A04 0%, #2C1810 40%, #0A0503 100%);
+    border: 2px solid #451A03;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 0 60px rgba(251,191,36,0.15), 0 12px 40px rgba(0,0,0,0.8);
+    width: 100%; max-width: 360px;
+  }
+  .reel-frame {
+    background: #000;
+    border-radius: 10px;
+    padding: 8px;
+    box-shadow: inset 0 4px 20px rgba(0,0,0,0.95), 0 0 0 2px #1F0A02, 0 0 0 3px rgba(251,191,36,0.3);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: 4px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    background: linear-gradient(180deg, #1F1B16 0%, #0A0805 100%);
+    border-radius: 6px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-family: Georgia, serif;
+    font-weight: 900;
+    font-size: 18px;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.3s, background 0.3s;
+  }
+  .cell .symbol {
+    line-height: 1;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  }
+  .cell .stop-num {
+    position: absolute;
+    top: 3px; right: 4px;
+    font-family: "Courier New", monospace;
+    font-size: 8px; font-weight: 700;
+    color: #FBBF24; opacity: 0.4;
+  }
+  .cell.spinning {
+    background: linear-gradient(180deg, #3A2614 0%, #1F0A02 100%);
+    animation: spinFlash 0.08s linear infinite;
+  }
+  /* Sweat intensity scales with how many JP symbols have already landed.
+     sweat-2 = gentle (2 JP, going for JP3)
+     sweat-3 = stronger (3 JP, JP3 locked, going for JP2)
+     sweat-4 = full-roar (4 JP, JP2 locked, going for JP1 grand)
+     sweat-5 = JP1 locked, calm wrap-up. */
+  .cell.sweat-2 {
+    background: linear-gradient(180deg, #2C1810 0%, #0A0503 100%);
+    animation: sweatPulse2 0.7s ease-in-out infinite alternate;
+  }
+  .cell.sweat-3 {
+    background: linear-gradient(180deg, #3D1F0F 0%, #1A0A04 100%);
+    animation: sweatPulse3 0.55s ease-in-out infinite alternate;
+  }
+  .cell.sweat-4 {
+    background: linear-gradient(180deg, #4C2510 0%, #2A1308 100%);
+    animation: sweatPulse4 0.4s ease-in-out infinite alternate;
+  }
+  .cell.sweat-5 {
+    background: linear-gradient(180deg, #2C1810 0%, #0A0503 100%);
+    box-shadow: inset 0 0 0 1px rgba(251,191,36,0.25);
+  }
+  .cell.jp-landed {
+    background: radial-gradient(ellipse at center, rgba(251,191,36,0.55) 0%, rgba(220,38,38,0.4) 60%, rgba(124,45,18,0.7) 100%);
+    box-shadow: 0 0 24px rgba(251,191,36,0.8), inset 0 0 0 2px #FBBF24, inset 0 0 18px rgba(251,191,36,0.5);
+    animation: jpGlow 0.7s ease-in-out infinite alternate;
+  }
+  @keyframes spinFlash {
+    50% { background: linear-gradient(180deg, #1F1B16 0%, #2C1810 100%); }
+  }
+  @keyframes sweatPulse2 {
+    from { box-shadow: inset 0 0 0 1px rgba(251,191,36,0.20); }
+    to   { box-shadow: inset 0 0 0 1px rgba(251,191,36,0.55), 0 0 14px rgba(251,191,36,0.35); }
+  }
+  @keyframes sweatPulse3 {
+    from { box-shadow: inset 0 0 0 1px rgba(251,191,36,0.35); }
+    to   { box-shadow: inset 0 0 0 2px rgba(251,191,36,0.75), 0 0 22px rgba(251,191,36,0.55); }
+  }
+  @keyframes sweatPulse4 {
+    from { box-shadow: inset 0 0 0 2px rgba(255,251,235,0.45), 0 0 12px rgba(251,191,36,0.5); }
+    to   { box-shadow: inset 0 0 0 2px rgba(255,251,235,1),    0 0 32px rgba(251,191,36,0.9); }
+  }
+  @keyframes jpGlow {
+    from { box-shadow: 0 0 20px rgba(251,191,36,0.6), inset 0 0 0 2px #FBBF24, inset 0 0 14px rgba(251,191,36,0.4); }
+    to   { box-shadow: 0 0 30px rgba(251,191,36,1), inset 0 0 0 2px #FFFBEB, inset 0 0 22px rgba(251,191,36,0.7); }
+  }
+  .status {
+    margin-top: 14px;
+    text-align: center;
+    min-height: 44px;
+  }
+  .status-line {
+    font-size: 11px;
+    color: #FED7AA;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .status-line.sweating { color: #FBBF24; font-weight: 900; }
+  .status-line.jp-1 { color: #FBBF24; font-size: 18px; font-weight: 900; letter-spacing: 3px; filter: drop-shadow(0 0 8px #FBBF24); }
+  .status-line.jp-2 { color: #FCD34D; font-size: 15px; font-weight: 900; letter-spacing: 2px; }
+  .status-line.jp-3 { color: #FED7AA; font-size: 13px; font-weight: 900; letter-spacing: 2px; }
+  .controls {
+    margin-top: 16px;
+    display: flex; gap: 10px;
+    justify-content: center;
+  }
+  button {
+    font-family: Georgia, serif;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    font-size: 13px;
+    padding: 12px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid #FCD34D;
+  }
+  .spin-btn {
+    background: radial-gradient(ellipse at top, #FEF3C7 0%, #FBBF24 30%, #B45309 100%);
+    color: #451A03;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+  .spin-btn:disabled {
+    opacity: 0.4; cursor: default;
+  }
+  .demo-toggle {
+    margin-top: 18px;
+    display: flex; gap: 6px; align-items: center;
+    font-size: 10px; letter-spacing: 1px; opacity: 0.6;
+  }
+  .demo-toggle label { cursor: pointer; }
+  .legend {
+    margin-top: 24px;
+    max-width: 360px;
+    font-size: 10px;
+    line-height: 1.6;
+    color: #FED7AA;
+    opacity: 0.7;
+    text-align: center;
+  }
+  .legend strong { color: #FBBF24; }
+</style>
+</head>
+<body>
+
+<h1>5×3 WAYS GAME — LAYOUT PREVIEW</h1>
+<div class="subtitle">3 cols · 5 rows · 15 mini-reels · row-major stop · 125 ways</div>
+
+<div class="cabinet">
+  <div class="reel-frame">
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="status">
+    <div class="status-line" id="status">Press SPIN to see the layout in action</div>
+  </div>
+  <div class="controls">
+    <button class="spin-btn" id="spin-btn">SPIN</button>
+  </div>
+  <div class="demo-toggle">
+    <input type="checkbox" id="hot-mode" />
+    <label for="hot-mode">HOT MODE (bump JP density for easier demos)</label>
+  </div>
+</div>
+
+<div class="legend">
+  Each cell is its own independent mini-reel.
+  All 15 begin spinning at once; they stop one at a time in numbered order.
+  Once <strong>2+ JP</strong> symbols are visible on stopped cells, remaining cells
+  enter <strong>SWEAT</strong> mode — slower stop, gold pulse, intensity escalates
+  per landed JP. Trigger thresholds: <strong>3 JP = JP3</strong>, <strong>4 = JP2</strong>,
+  <strong>5 = JP1</strong>. Only one tier fires.
+  <br><br>
+  <strong>JP HOLD RULE:</strong> after 2 JP are already on board, every cell that
+  lands an additional JP holds in the spinning state for at least <strong>10
+  seconds</strong> before revealing. The trigger moment never feels cheap.
+</div>
+
+<script>
+  // Weighted symbol pool. Higher number = more frequent.
+  const SYMBOLS = [
+    { id: 'T',  weight: 14, color: '#16A34A' },
+    { id: 'J',  weight: 14, color: '#0EA5E9' },
+    { id: 'Q',  weight: 14, color: '#7C3AED' },
+    { id: 'K',  weight: 12, color: '#DC2626' },
+    { id: 'A',  weight: 12, color: '#FBBF24' },
+    { id: 'P5', weight: 9,  color: '#FED7AA' },
+    { id: 'P4', weight: 8,  color: '#FEF3C7' },
+    { id: 'P3', weight: 6,  color: '#FECACA' },
+    { id: 'P2', weight: 5,  color: '#FCD34D' },
+    { id: 'P1', weight: 4,  color: '#FFFBEB' },
+    { id: 'W',  weight: 5,  color: '#FBBF24' },   // wild
+    { id: 'FS', weight: 3,  color: '#A78BFA' },   // free spins scatter
+    { id: 'BN', weight: 3,  color: '#F472B6' },   // bonus scatter
+    { id: 'JP', weight: 4,  color: '#FCD34D' },   // jackpot trigger (normal-mode rarity)
+  ]
+  const HOT_JP_WEIGHT = 18; // hot mode JP weight for easy demo wins
+
+  function weightedPick(hotMode) {
+    const pool = SYMBOLS.map(s =>
+      ({ ...s, w: s.id === 'JP' && hotMode ? HOT_JP_WEIGHT : s.weight })
+    );
+    const total = pool.reduce((a, b) => a + b.w, 0);
+    let r = Math.random() * total;
+    for (const s of pool) { r -= s.w; if (r <= 0) return s; }
+    return pool[pool.length - 1];
+  }
+
+  // Build the 3x5 grid (15 cells, row-major stop order 1..15).
+  const gridEl = document.getElementById('grid');
+  const cells = [];
+  for (let i = 0; i < 15; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = `
+      <span class="stop-num">${i + 1}</span>
+      <span class="symbol" style="color: #FED7AA;">·</span>
+    `;
+    gridEl.appendChild(cell);
+    cells.push(cell);
+  }
+
+  const spinBtn = document.getElementById('spin-btn');
+  const statusEl = document.getElementById('status');
+  const hotEl = document.getElementById('hot-mode');
+
+  function setSymbol(cell, sym) {
+    const span = cell.querySelector('.symbol');
+    span.textContent = sym.id;
+    span.style.color = sym.color;
+  }
+
+  function setStatus(text, klass) {
+    statusEl.textContent = text;
+    statusEl.className = 'status-line' + (klass ? ' ' + klass : '');
+  }
+
+  async function runSpin() {
+    spinBtn.disabled = true;
+    const hotMode = hotEl.checked;
+    setStatus('REELS SPINNING…');
+
+    // 1. Start all cells spinning simultaneously with a fast symbol cycle.
+    const intervals = [];
+    cells.forEach((c) => {
+      c.classList.remove('jp-landed', 'sweating');
+      c.classList.add('spinning');
+      const id = setInterval(() => {
+        const fake = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+        setSymbol(c, fake);
+      }, 70);
+      intervals.push(id);
+    });
+
+    // Hold the all-spinning state briefly so the player sees the full grid alive.
+    // Total spin target = 5,000ms (500 hold + 15 × 300ms per-cell stop).
+    await sleep(500);
+
+    // 2. Stop cells one at a time in row-major order.
+    // Sweat duration ramps up the more JP symbols are already on the board:
+    //   0–1 JP visible → 300ms (normal pace, 5s total)
+    //   2 JP visible   → 700ms (sweating for JP3 trigger)
+    //   3 JP visible   → JP3 locked; sweating for JP2 upgrade → 900ms
+    //   4 JP visible   → JP2 locked; sweating for JP1 grand   → 1200ms
+    //   5+ JP visible  → JP1 locked; race to celebration       → 400ms
+    //
+    // SPECIAL RULE: once 2 JP symbols are already on the board, any cell
+    // that is *about to land* the 3rd, 4th, or 5th JP gets its stop time
+    // stretched to a minimum of 10,000ms. The headline trigger never feels
+    // cheap — the JP-landing cell hangs in the spinning state for at least
+    // 10 seconds before it reveals.
+    const JP_HOLD_MIN_MS = 10000;
+    function sweatDurationFor(jpCount) {
+      if (jpCount >= 5) return 400;
+      if (jpCount >= 4) return 1200;
+      if (jpCount >= 3) return 900;
+      if (jpCount >= 2) return 700;
+      return 300;
+    }
+    function sweatClassFor(jpCount) {
+      if (jpCount >= 5) return 'sweat-5';
+      if (jpCount >= 4) return 'sweat-4';
+      if (jpCount >= 3) return 'sweat-3';
+      if (jpCount >= 2) return 'sweat-2';
+      return null;
+    }
+    function sweatStatusFor(jpCount) {
+      if (jpCount >= 5) return { text: `★ JP1 LOCKED ★ — celebration incoming`, klass: 'jp-1' };
+      if (jpCount >= 4) return { text: `JP2 LOCKED — sweating for JP1 GRAND…`, klass: 'sweating' };
+      if (jpCount >= 3) return { text: `JP3 LOCKED — sweating for JP2 upgrade…`, klass: 'sweating' };
+      if (jpCount >= 2) return { text: `SWEAT — 2 JP visible, need 1 more for JP3`, klass: 'sweating' };
+      return { text: `REELS SPINNING…`, klass: null };
+    }
+
+    const final = [];
+    let jpVisible = 0;
+
+    for (let i = 0; i < 15; i++) {
+      // Pre-roll the symbol for this cell.
+      const sym = weightedPick(hotMode);
+      final.push(sym);
+
+      // Apply the visual sweat tier to all still-spinning cells, based on
+      // how many JP symbols are visible so far. Class flips dynamically as
+      // more land — the intensity escalates with the tier-in-play.
+      const sweatClass = sweatClassFor(jpVisible);
+      for (let j = i; j < 15; j++) {
+        cells[j].classList.remove('sweat-2', 'sweat-3', 'sweat-4', 'sweat-5');
+        if (sweatClass) {
+          cells[j].classList.remove('spinning');
+          cells[j].classList.add(sweatClass);
+        }
+      }
+      const { text, klass } = sweatStatusFor(jpVisible);
+      setStatus(text, klass);
+
+      // Compute this cell's stop duration. Base is the sweat curve. If
+      // 2+ JP are already on the board AND this cell is about to land
+      // another JP, stretch it to ≥ 10s — the moment of trigger should
+      // never feel rushed.
+      let dur = sweatDurationFor(jpVisible);
+      const isPendingJpDuringSweat = jpVisible >= 2 && sym.id === 'JP';
+      if (isPendingJpDuringSweat) {
+        dur = Math.max(dur, JP_HOLD_MIN_MS);
+        // Give the player a visual cue this cell specifically is "the one"
+        // — full-roar pulse on just the held cell while it hangs.
+        cells[i].classList.remove('sweat-2', 'sweat-3', 'sweat-4', 'sweat-5');
+        cells[i].classList.add('sweat-4');
+      }
+      // Wait, then stop this cell.
+      await sleep(dur);
+
+      // Stop the spin interval for THIS cell only.
+      clearInterval(intervals[i]);
+      cells[i].classList.remove('spinning', 'sweat-2', 'sweat-3', 'sweat-4', 'sweat-5');
+      setSymbol(cells[i], sym);
+
+      if (sym.id === 'JP') {
+        jpVisible += 1;
+        cells[i].classList.add('jp-landed');
+      }
+    }
+
+    // 3. Resolve final tier.
+    let tier = null;
+    if (jpVisible >= 5) tier = 'JP1';
+    else if (jpVisible >= 4) tier = 'JP2';
+    else if (jpVisible >= 3) tier = 'JP3';
+
+    if (tier === 'JP1') {
+      setStatus(`✦ JACKPOT 1 GRAND ✦  (${jpVisible} JP symbols)`, 'jp-1');
+    } else if (tier === 'JP2') {
+      setStatus(`✦ JACKPOT 2 MAJOR ✦  (${jpVisible} JP symbols)`, 'jp-2');
+    } else if (tier === 'JP3') {
+      setStatus(`✦ JACKPOT 3 MINOR ✦  (${jpVisible} JP symbols)`, 'jp-3');
+    } else if (jpVisible === 2) {
+      setStatus(`So close — 2 JP, needed 3`, '');
+    } else if (jpVisible === 1) {
+      setStatus(`1 JP visible — no trigger`, '');
+    } else {
+      setStatus(`No JP this spin. Press SPIN to try again.`, '');
+    }
+
+    spinBtn.disabled = false;
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  spinBtn.addEventListener('click', runSpin);
+</script>
+
+</body>
+</html>
