@@ -1,0 +1,4 @@
+{
+  "_note": "Iter1 (revised): bump scatter 3-of-a-kind pay from 2× to 4× total_bet. Small targeted lift. Lever 2 from user's brief (scatter pay multipliers).",
+  "scatter_pay": { "3": 4, "4": 15, "5": 100 }
+}

@@ -1,0 +1,4 @@
+{
+  "_note": "Iter2: scatter 3× pay = 3 (was 2). Iter1's 2→4 overshot (~96.3%). Try smaller +50% bump to 3.",
+  "scatter_pay": { "3": 3, "4": 15, "5": 100 }
+}

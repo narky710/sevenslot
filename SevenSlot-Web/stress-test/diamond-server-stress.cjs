@@ -62,7 +62,9 @@ const LINE_PAY = {
 }
 
 // Tiered scatter pay (Coin = SCATTER 14), × total_bet.
-const SCATTER_PAY = { 3: 2, 4: 15, 5: 100 }
+// 3-coin pay raised 2× → 3× in migration diamond_riches_rtp_94_96_iter1
+// (2026-05-25) to land RTP in 94-96% band.
+const SCATTER_PAY = { 3: 3, 4: 15, 5: 100 }
 
 // Reserved symbol indices used by server code (post-rebuild).
 const SYM = { BLANK: 0, WILD: 13, SCATTER: 14 }
